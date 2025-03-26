@@ -2,8 +2,14 @@
   "name": "valkey-index",
   "main": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "pretest": "podman run --rm --detach --name valkey-index-test --publish 127.0.0.1:6379:6379 valkey/valkey",
+    "test": "bun test || (podman stop valkey-index-test && false)",
+    "posttest": "podman stop valkey-index-test"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/jest": "^29.5.14"
   },
   "peerDependencies": {
     "typescript": "^5"
