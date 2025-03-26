@@ -24,7 +24,9 @@ const hashIndex = createValkeyIndex(
 );
 
 test("Hash index", async () => {
+  const get1 = await hashIndex.get({ pkey: "1" });
+  expect(get1).toEqual({});
   await hashIndex.set({ pkey: "1", input: { foo: "ababa", bar: 1 } });
-  const value = await hashIndex.get({ pkey: "1" });
-  expect(value).toEqual({ foo: "ababa", bar: 1 });
+  const get2 = await hashIndex.get({ pkey: "1" });
+  expect(get2).toEqual({ foo: "ababa", bar: 1 });
 });
