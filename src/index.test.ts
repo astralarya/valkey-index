@@ -23,24 +23,20 @@ const hashIndex = createValkeyIndex(
     valkey,
     name: "hash",
     get: getHash<TestObject>(),
+    set: setHash<TestObject>(),
   },
   {
-    set: setHash<TestObject>(),
     update: updateHash<TestObject>(),
   },
 );
 
-const relationIndex = createValkeyIndex(
-  {
-    valkey,
-    name: "relation",
-    get: getHash<TestObject>(),
-    related: relatedHash({ fields: ["bar"] }),
-  },
-  {
-    set: setHash<TestObject>(),
-  },
-);
+const relationIndex = createValkeyIndex({
+  valkey,
+  name: "relation",
+  get: getHash<TestObject>(),
+  related: relatedHash({ fields: ["bar"] }),
+  set: setHash<TestObject>(),
+});
 
 test("Hash index", async () => {
   const get1 = await hashIndex.get("1");

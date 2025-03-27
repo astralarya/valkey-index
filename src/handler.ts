@@ -6,6 +6,7 @@ import {
   type ValkeyIndexGetter,
   type ValkeyIndexHandler,
   type ValkeyIndexOps,
+  type ValkeyIndexSetter,
   type ValkeyIndexStreamHandler,
   type ValkeyIndexSubscriptionHandler,
 } from ".";
@@ -61,24 +62,16 @@ export function setHash<T>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
-} = {}): ValkeyIndexHandler<{ pkey: string; input: T | undefined }, T, any> {
-  return async function set(
-    { valkey, toKey, touch },
-    { pkey, input },
-    options,
-  ) {
+} = {}): ValkeyIndexSetter<T, any> {
+  return async function set(_ops, pipeline, { key, input }, options) {
     if (input === undefined) {
       return;
     }
-    const key = toKey(pkey);
     const value = convert(input);
     if (value === undefined) {
       return;
     }
-    const pipeline = valkey.multi();
     pipeline.hset(key, value);
-    await touch(pipeline, { pkey, value: input }, options);
-    await pipeline.exec();
   };
 }
 
