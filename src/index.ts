@@ -15,7 +15,7 @@ export type ValkeyIndex<R extends KeyPart> = {
   name: string;
   related?: (
     ops: ValkeyIndexOps<KeyPart>,
-    pkey: KeyPart
+    pkey: KeyPart,
   ) => Promise<Record<R, KeyPart[] | KeyPart | undefined>>;
   ttl?: number | null;
   maxlen?: number | null;
@@ -34,12 +34,12 @@ export type ValkeyIndexOps<R extends KeyPart> = {
   pkeysVia: (relation: string, fkey: KeyPart) => Promise<string[]>;
   related?: (
     ops: ValkeyIndexOps<KeyPart>,
-    pkey: KeyPart
+    pkey: KeyPart,
   ) => Promise<Record<R, KeyPart[] | KeyPart | undefined>>;
   touch: (
     pipeline: ChainableCommander,
     pkey: KeyPart,
-    options?: ValkeyIndexHandlerOptions
+    options?: ValkeyIndexHandlerOptions,
   ) => Promise<number>;
   subscribe: (x: {
     pkey: KeyPart;
@@ -58,27 +58,27 @@ export type ValkeyIndexOps<R extends KeyPart> = {
 
 export type ValkeyIndexCommand<A, T> = (
   arg: A,
-  options?: ValkeyIndexHandlerOptions
+  options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
 export type ValkeyIndexHandler<A> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions
+  options?: ValkeyIndexHandlerOptions,
 ) => Promise<void>;
 export type ValkeyIndexItemHandler<A, T> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions
+  options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
 export type ValkeyIndexStreamHandler<A, T> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions
+  options?: ValkeyIndexHandlerOptions,
 ) => Promise<StreamItem<T | undefined>[]>;
 export type ValkeyIndexSubscriptionHandler<A, T> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions
+  options?: ValkeyIndexHandlerOptions,
 ) => AsyncGenerator<StreamItem<T | undefined>>;
 
 export type ValkeyIndexSpec<T> = Record<
@@ -96,7 +96,7 @@ export type ValkeyIndexSpec<T> = Record<
 export type ValkeyIndexFunction<
   T,
   M extends ValkeyIndexSpec<T>,
-  K extends keyof M
+  K extends keyof M,
 > = M[K] extends ValkeyIndexHandler<infer A>
   ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<void>
   : M[K] extends ValkeyIndexItemHandler<infer A, infer R>
@@ -104,12 +104,12 @@ export type ValkeyIndexFunction<
   : M[K] extends ValkeyIndexStreamHandler<infer A, infer R>
   ? (
       arg: A,
-      options?: ValkeyIndexHandlerOptions
+      options?: ValkeyIndexHandlerOptions,
     ) => Promise<StreamItem<R | undefined>[]>
   : M[K] extends ValkeyIndexSubscriptionHandler<infer A, infer R>
   ? (
       arg: A,
-      options?: ValkeyIndexHandlerOptions
+      options?: ValkeyIndexHandlerOptions,
     ) => Promise<AsyncGenerator<StreamItem<R | undefined>>>
   : never;
 
@@ -125,7 +125,7 @@ export type StreamItem<T> = {
 export function createValkeyIndex<
   T,
   R extends KeyPart,
-  M extends ValkeyIndexSpec<T>
+  M extends ValkeyIndexSpec<T>,
 >(
   {
     valkey,
@@ -134,7 +134,7 @@ export function createValkeyIndex<
     ttl = DEFAULT_TTL,
     maxlen = DEFAULT_MAXLEN,
   }: ValkeyIndex<R>,
-  functions = {} as M
+  functions = {} as M,
 ) {
   function toKey(id: KeyPart, relation?: string) {
     if (relation) {
@@ -154,7 +154,7 @@ export function createValkeyIndex<
     relation: string,
     pkey: KeyPart,
     fkey: KeyPart,
-    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions
+    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions,
   ) {
     let exec_count = 0;
     const key = toKey(fkey, relation);
@@ -191,7 +191,7 @@ export function createValkeyIndex<
   async function touch(
     pipeline: ChainableCommander,
     pkey: KeyPart,
-    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions = {}
+    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions = {},
   ) {
     let exec_count = 0;
     const key = toKey(pkey);
@@ -236,7 +236,7 @@ export function createValkeyIndex<
                 {
                   ttl: ttl_in,
                   message,
-                }
+                },
               );
             });
           } else if (fkey !== undefined) {
@@ -248,7 +248,7 @@ export function createValkeyIndex<
               {
                 ttl: ttl_in,
                 message,
-              }
+              },
             );
           }
         }

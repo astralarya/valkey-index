@@ -9,11 +9,11 @@ import {
 } from ".";
 
 export type ValueSerializer<T> = (
-  input: T
+  input: T,
 ) => Record<string, string | number | undefined> | undefined;
 
 export type ValueDeserializer<T> = (
-  input: Record<string, string>
+  input: Record<string, string>,
 ) => T | undefined;
 
 function DEFAULT_SERIALIZER<T>(input: T) {
@@ -23,7 +23,7 @@ function DEFAULT_SERIALIZER<T>(input: T) {
     return Object.fromEntries(
       Object.entries(input).map(([key, val]) => {
         return [key, SuperJSON.stringify(val)];
-      })
+      }),
     );
   }
 }
@@ -32,7 +32,7 @@ function DEFAULT_DESERIALIZER<T>(input: Record<string, string>) {
   return Object.fromEntries(
     Object.entries(input).map(([key, val]) => {
       return [key, SuperJSON.parse(val)];
-    })
+    }),
   ) as T;
 }
 
@@ -68,7 +68,7 @@ export function setHash<T>({
   return async function set(
     { valkey, toKey, touch },
     { pkey, input },
-    options
+    options,
   ) {
     if (input === undefined) {
       return;
@@ -93,7 +93,7 @@ export function updateHash<T>({
   return async function update(
     { valkey, toKey, touch },
     { pkey, input },
-    options
+    options,
   ) {
     const key = toKey(pkey);
     const value = convert(input);
@@ -124,7 +124,7 @@ export function appendStream<T>({
   return async function append(
     { valkey, toKey, touch, ttl = null, maxlen = null },
     { pkey, input, id },
-    options
+    options,
   ) {
     const key = toKey(pkey);
     const value = input && convert(input);
@@ -145,9 +145,9 @@ export function appendStream<T>({
       ...Array.from(
         Object.entries(value).filter(
           (item): item is [(typeof item)[0], NonNullable<(typeof item)[1]>] =>
-            input !== undefined
-        )
-      ).flat()
+            input !== undefined,
+        ),
+      ).flat(),
     );
     await touch(pipeline, pkey, options);
     await pipeline.exec();
@@ -165,7 +165,7 @@ export function rangeStream<T>({
   return async function range(
     { valkey, toKey, touch, ttl = null, maxlen = null },
     { pkey, start, stop },
-    options
+    options,
   ) {
     const key = toKey(pkey);
     const pipeline = valkey.multi();
@@ -202,7 +202,7 @@ export function readStream<T>({
   return async function* read(
     ops,
     { pkey, lastId, signal },
-    options
+    options,
   ): AsyncGenerator<StreamItem<T | undefined>> {
     const { valkey, toKey, touch, ttl = null, maxlen = null } = ops;
     const key = toKey(pkey);
@@ -232,7 +232,7 @@ export function readStream<T>({
           0,
           "STREAMS",
           key,
-          lastSeen
+          lastSeen,
         );
         for (const [, items] of results ?? []) {
           for (const [id, fields] of items) {
