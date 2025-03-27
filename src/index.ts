@@ -64,7 +64,7 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
   delVia: (relation: string, fkey: KeyPart) => Promise<void>;
 };
 
-export type ValkeyIndexCommand<A, T, R extends keyof T> = (
+export type ValkeyIndexCommand<A, T> = (
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
