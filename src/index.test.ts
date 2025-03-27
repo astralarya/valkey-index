@@ -1,5 +1,11 @@
 import Valkey from "iovalkey";
-import { createValkeyIndex, getHash, relatedHash, setHash } from ".";
+import {
+  createValkeyIndex,
+  getHash,
+  relatedHash,
+  setHash,
+  updateHash,
+} from ".";
 
 const valkey = new Valkey();
 
@@ -20,6 +26,7 @@ const hashIndex = createValkeyIndex(
   {
     get: getHash<TestObject>(),
     set: setHash<TestObject>(),
+    update: updateHash<TestObject>(),
   },
 );
 
@@ -38,9 +45,18 @@ const relationIndex = createValkeyIndex(
 test("Hash index", async () => {
   const get1 = await hashIndex.get({ pkey: "1" });
   expect(get1).toEqual({});
+
   await hashIndex.set({ pkey: "1", input: { foo: "ababa", bar: 1 } });
   const get2 = await hashIndex.get({ pkey: "1" });
   expect(get2).toEqual({ foo: "ababa", bar: 1 });
+
+  await hashIndex.f.update({ pkey: "1", input: { bar: 2 } });
+  const get3 = await hashIndex.get({ pkey: "1" });
+  expect(get3).toEqual({ foo: "ababa", bar: 2 });
+
+  await hashIndex.f.update({ pkey: "1", input: { bar: undefined } });
+  const get4 = await hashIndex.get({ pkey: "1" });
+  expect(get4).toEqual({ foo: "ababa" });
 });
 
 test("Relation index", async () => {
