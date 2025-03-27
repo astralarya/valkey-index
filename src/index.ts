@@ -122,6 +122,53 @@ export type StreamItem<T> = {
   data: T;
 };
 
+export function calculateRm<R extends KeyPart>({
+  curr,
+  next,
+}: {
+  curr?: Record<R, KeyPart | KeyPart[] | undefined>;
+  next?: Record<R, unknown | unknown[] | undefined>;
+}) {
+  return curr
+    ? Object.fromEntries(
+        (Object.entries(curr) as [R, KeyPart | KeyPart[] | undefined][]).map(
+          ([relation, fkeys]): [R, KeyPart | KeyPart[] | undefined] => {
+            if (!next || !next[relation]) {
+              return [relation, fkeys];
+            }
+            const newkeys = next[relation];
+            if (!fkeys) {
+              return [relation, undefined];
+            } else if (Array.isArray(fkeys)) {
+              return [
+                relation,
+                Array.isArray(newkeys)
+                  ? fkeys.filter(
+                      (x) => newkeys.find((y) => x === String(y)) === -1,
+                    )
+                  : fkeys.filter((x) => x !== String(newkeys)),
+              ];
+            } else {
+              if (Array.isArray(newkeys)) {
+                return [
+                  relation,
+                  newkeys.find((y) => fkeys === String(y)) === -1
+                    ? fkeys
+                    : undefined,
+                ];
+              } else {
+                return [
+                  relation,
+                  String(newkeys) !== fkeys ? fkeys : undefined,
+                ];
+              }
+            }
+          },
+        ),
+      )
+    : undefined;
+}
+
 export function createValkeyIndex<
   T,
   R extends KeyPart,
