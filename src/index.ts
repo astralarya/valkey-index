@@ -16,7 +16,7 @@ export type ValkeyIndex<R extends KeyPart> = {
   related?: (
     ops: ValkeyIndexOps<KeyPart>,
     pkey: KeyPart,
-  ) => Promise<Record<R, KeyPart[] | KeyPart | undefined>>;
+  ) => Promise<Record<R, KeyPart[] | KeyPart | undefined> | undefined>;
   ttl?: number | null;
   maxlen?: number | null;
 };
@@ -35,7 +35,7 @@ export type ValkeyIndexOps<R extends KeyPart> = {
   related?: (
     ops: ValkeyIndexOps<KeyPart>,
     pkey: KeyPart,
-  ) => Promise<Record<R, KeyPart[] | KeyPart | undefined>>;
+  ) => Promise<Record<R, KeyPart[] | KeyPart | undefined> | undefined>;
   touch: (
     pipeline: ChainableCommander,
     pkey: KeyPart,
@@ -196,7 +196,7 @@ export function createValkeyIndex<
     let exec_count = 0;
     const key = toKey(pkey);
     const exists = (await valkey.exists(key)) !== 0;
-    const relations = related ? await related(ops, key) : null;
+    const relations = related ? await related(ops, key) : undefined;
     if (ttl_in instanceof Date) {
       pipeline.expireat(key, ttl_in.valueOf());
       exec_count += 1;

@@ -1,9 +1,11 @@
 import SuperJSON from "superjson";
 
 import {
+  type KeyPart,
   type StreamItem,
   type ValkeyIndexHandler,
   type ValkeyIndexItemHandler,
+  type ValkeyIndexOps,
   type ValkeyIndexStreamHandler,
   type ValkeyIndexSubscriptionHandler,
 } from ".";
@@ -28,10 +30,10 @@ function DEFAULT_SERIALIZER<T>(input: T) {
   }
 }
 
-function DEFAULT_DESERIALIZER<T>(input: Record<string, string>) {
+function DEFAULT_DESERIALIZER<T>(input: Record<string, string | undefined>) {
   return Object.fromEntries(
     Object.entries(input).map(([key, val]) => {
-      return [key, SuperJSON.parse(val)];
+      return [key, val ? SuperJSON.parse(val) : val];
     }),
   ) as T;
 }
@@ -109,6 +111,29 @@ export function updateHash<T>({
     }
     await touch(pipeline, pkey, options);
     await pipeline.exec();
+  };
+}
+
+export function relatedHash<T>({
+  convert = DEFAULT_DESERIALIZER,
+  fields,
+}: {
+  fields: (keyof T)[];
+  convert?: ValueDeserializer<Pick<T, keyof T & typeof fields>>;
+}) {
+  return async function related(
+    { valkey }: ValkeyIndexOps<KeyPart>,
+    key: KeyPart,
+  ) {
+    const pipeline = valkey.pipeline();
+    for (const field of fields) {
+      pipeline.hget(String(key), String(field));
+    }
+    const results = await pipeline.exec();
+    const value = Object.fromEntries(
+      results?.map(([, result], idx) => [fields[idx], result]) ?? [],
+    );
+    return convert(value);
   };
 }
 
