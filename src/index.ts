@@ -9,36 +9,44 @@ export const DEFAULT_MAXLEN = 8;
 
 export type KeyPart = string | number | symbol;
 
-export type ValkeyIndex<R extends KeyPart> = {
+export type ValkeyIndex<T, R extends keyof T> = {
   valkey: Redis;
   // name/relation limited to alphanum, underscore, dot
   name: string;
+  get?: (ops: ValkeyIndexOps<T, R>, key: string) => Promise<T | undefined>;
   related?: (
-    ops: ValkeyIndexOps<KeyPart>,
-    pkey: KeyPart,
-  ) => Promise<Record<R, KeyPart[] | KeyPart | undefined> | undefined>;
+    value: Partial<T>,
+  ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
   ttl?: number | null;
   maxlen?: number | null;
 };
+
+export type ValkeyIndexGetter<T, R extends keyof T> = (
+  ops: ValkeyIndexOps<T, R>,
+  key: string,
+) => Promise<T | undefined>;
 
 export type ValkeyIndexHandlerOptions = {
   ttl?: Date | number;
   message?: string;
 };
 
-export type ValkeyIndexOps<R extends KeyPart> = {
+export type ValkeyIndexOps<T, R extends keyof T> = {
   valkey: Redis;
   ttl?: number | null;
   maxlen?: number | null;
   toKey: (id: KeyPart, relation?: string) => string;
   pkeysVia: (relation: string, fkey: KeyPart) => Promise<string[]>;
-  related?: (
-    ops: ValkeyIndexOps<KeyPart>,
-    pkey: KeyPart,
-  ) => Promise<Record<R, KeyPart[] | KeyPart | undefined> | undefined>;
+  get?: (pkey: string) => Promise<T | undefined>;
+  related: (
+    value: Partial<T>,
+  ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
   touch: (
     pipeline: ChainableCommander,
-    pkey: KeyPart,
+    arg: {
+      pkey: KeyPart;
+      value?: Partial<T>;
+    },
     options?: ValkeyIndexHandlerOptions,
   ) => Promise<number>;
   subscribe: (x: {
@@ -56,65 +64,70 @@ export type ValkeyIndexOps<R extends KeyPart> = {
   delVia: (relation: string, fkey: KeyPart) => Promise<void>;
 };
 
-export type ValkeyIndexCommand<A, T> = (
+export type ValkeyIndexCommand<A, T, R extends keyof T> = (
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
-export type ValkeyIndexHandler<A> = (
-  ops: ValkeyIndexOps<KeyPart>,
+export type ValkeyIndexHandler<A, T, R extends keyof T> = (
+  ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<void>;
-export type ValkeyIndexItemHandler<A, T> = (
-  ops: ValkeyIndexOps<KeyPart>,
+export type ValkeyIndexItemHandler<A, T, R extends keyof T> = (
+  ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
-export type ValkeyIndexStreamHandler<A, T> = (
-  ops: ValkeyIndexOps<KeyPart>,
+export type ValkeyIndexStreamHandler<A, T, R extends keyof T> = (
+  ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<StreamItem<T | undefined>[]>;
-export type ValkeyIndexSubscriptionHandler<A, T> = (
-  ops: ValkeyIndexOps<KeyPart>,
+export type ValkeyIndexSubscriptionHandler<A, T, R extends keyof T> = (
+  ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => AsyncGenerator<StreamItem<T | undefined>>;
 
-export type ValkeyIndexSpec<T> = Record<
+export type ValkeyIndexSpec<T, R extends keyof T> = Record<
   string,
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexHandler<any>
+  | ValkeyIndexHandler<any, T, R>
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexItemHandler<any, T>
+  | ValkeyIndexItemHandler<any, T, R>
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexStreamHandler<any, T>
+  | ValkeyIndexStreamHandler<any, T, R>
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexSubscriptionHandler<any, T>
+  | ValkeyIndexSubscriptionHandler<any, T, R>
 >;
 
 export type ValkeyIndexFunction<
   T,
-  M extends ValkeyIndexSpec<T>,
+  R extends keyof T,
+  M extends ValkeyIndexSpec<T, R>,
   K extends keyof M,
-> = M[K] extends ValkeyIndexHandler<infer A>
+> = M[K] extends ValkeyIndexHandler<infer A, T, R>
   ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<void>
-  : M[K] extends ValkeyIndexItemHandler<infer A, infer R>
-  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<R>
-  : M[K] extends ValkeyIndexStreamHandler<infer A, infer R>
+  : M[K] extends ValkeyIndexItemHandler<infer A, T, R>
+  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<T>
+  : M[K] extends ValkeyIndexStreamHandler<infer A, T, R>
   ? (
       arg: A,
       options?: ValkeyIndexHandlerOptions,
-    ) => Promise<StreamItem<R | undefined>[]>
-  : M[K] extends ValkeyIndexSubscriptionHandler<infer A, infer R>
+    ) => Promise<StreamItem<T | undefined>[]>
+  : M[K] extends ValkeyIndexSubscriptionHandler<infer A, T, R>
   ? (
       arg: A,
       options?: ValkeyIndexHandlerOptions,
     ) => Promise<AsyncGenerator<StreamItem<R | undefined>>>
   : never;
 
-export type ValkeyIndexInterface<T, M extends ValkeyIndexSpec<T>> = {
-  [K in keyof M]: ValkeyIndexFunction<T, M, K>;
+export type ValkeyIndexInterface<
+  T,
+  R extends keyof T,
+  M extends ValkeyIndexSpec<T, R>,
+> = {
+  [K in keyof M]: ValkeyIndexFunction<T, R, M, K>;
 };
 
 export type StreamItem<T> = {
@@ -171,17 +184,66 @@ export function calculateRm<R extends KeyPart>({
 
 export function createValkeyIndex<
   T,
-  R extends KeyPart,
-  M extends ValkeyIndexSpec<T>,
+  R extends keyof T,
+  M extends ValkeyIndexSpec<T, R>,
+>(
+  index: Omit<ValkeyIndex<T, R>, "get"> & {
+    get: (ops: ValkeyIndexOps<T, R>, pkey: string) => Promise<T | undefined>;
+  },
+  functions: M,
+): Omit<ValkeyIndexOps<T, R>, "get"> & {
+  get: (pkey: string) => Promise<T | undefined>;
+  func: ValkeyIndexInterface<T, R, M>;
+  f: ValkeyIndexInterface<T, R, M>;
+  set: "set" extends keyof M ? ValkeyIndexFunction<T, R, M, "set"> : undefined;
+  append: "append" extends keyof M
+    ? ValkeyIndexFunction<T, R, M, "append">
+    : undefined;
+  range: "range" extends keyof M
+    ? ValkeyIndexFunction<T, R, M, "range">
+    : undefined;
+  read: "read" extends keyof M
+    ? ValkeyIndexFunction<T, R, M, "read">
+    : undefined;
+};
+
+export function createValkeyIndex<
+  T,
+  R extends keyof T,
+  M extends ValkeyIndexSpec<T, R>,
+>(
+  index: Omit<ValkeyIndex<T, R>, "get"> & { get?: undefined },
+  functions: M,
+): Omit<ValkeyIndexOps<T, R>, "get"> & {
+  get?: undefined;
+  func: ValkeyIndexInterface<T, R, M>;
+  f: ValkeyIndexInterface<T, R, M>;
+  set: "set" extends keyof M ? ValkeyIndexFunction<T, R, M, "set"> : undefined;
+  append: "append" extends keyof M
+    ? ValkeyIndexFunction<T, R, M, "append">
+    : undefined;
+  range: "range" extends keyof M
+    ? ValkeyIndexFunction<T, R, M, "range">
+    : undefined;
+  read: "read" extends keyof M
+    ? ValkeyIndexFunction<T, R, M, "read">
+    : undefined;
+};
+
+export function createValkeyIndex<
+  T,
+  R extends keyof T,
+  M extends ValkeyIndexSpec<T, R>,
 >(
   {
     valkey,
     name,
-    related,
+    get: get_,
+    related = () => ({} as Record<R, string>),
     ttl = DEFAULT_TTL,
     maxlen = DEFAULT_MAXLEN,
-  }: ValkeyIndex<R>,
-  functions = {} as M,
+  }: ValkeyIndex<T, R>,
+  functions = {},
 ) {
   function toKey(id: KeyPart, relation?: string) {
     if (relation) {
@@ -194,6 +256,18 @@ export function createValkeyIndex<
   async function pkeysVia(relation: string, fkey: KeyPart) {
     const key = toKey(fkey, relation);
     return valkey.zrange(key, 0, "-1");
+  }
+
+  async function get(pkey: KeyPart, options?: ValkeyIndexHandlerOptions) {
+    if (!get_) {
+      throw "valkey-index: get() invoked without being defined";
+    }
+    const key = toKey(pkey);
+    const value = await get_(ops, key);
+    const pipeline = valkey.multi();
+    await touch(pipeline, { pkey, value }, options);
+    await pipeline.exec();
+    return value;
   }
 
   function touchRelated(
@@ -237,13 +311,19 @@ export function createValkeyIndex<
 
   async function touch(
     pipeline: ChainableCommander,
-    pkey: KeyPart,
+    {
+      pkey,
+      value,
+    }: {
+      pkey: KeyPart;
+      value?: Partial<T>;
+    },
     { ttl: ttl_in, message }: ValkeyIndexHandlerOptions = {},
   ) {
     let exec_count = 0;
     const key = toKey(pkey);
     const exists = (await valkey.exists(key)) !== 0;
-    const relations = related ? await related(ops, key) : undefined;
+    const relations = value && related ? related(value) : undefined;
     if (ttl_in instanceof Date) {
       pipeline.expireat(key, ttl_in.valueOf());
       exec_count += 1;
@@ -376,7 +456,8 @@ export function createValkeyIndex<
 
   async function del(pkey: KeyPart) {
     const key = toKey(pkey);
-    const relations = related ? await related(ops, key) : null;
+    const value = get ? await get(key) : undefined;
+    const relations = value && related ? related(value) : null;
     const pipeline = valkey.multi();
     if (relations) {
       for (const [relation, fkey] of Object.entries(relations)) {
@@ -400,10 +481,11 @@ export function createValkeyIndex<
     await Promise.all(pkeys.map((pkey) => del(pkey)));
   }
 
-  const ops: ValkeyIndexOps<R> = {
+  const ops: ValkeyIndexOps<T, R> = {
     valkey,
     toKey,
     pkeysVia,
+    ...(get_ ? { get } : undefined),
     related,
     touch,
     subscribe,
@@ -413,20 +495,22 @@ export function createValkeyIndex<
   };
 
   const func = Object.entries(functions).reduce((prev, [key, val]) => {
-    prev[key as keyof M] = (async (...args) => {
-      return val(ops, ...args);
-    }) as ValkeyIndexFunction<T, M, typeof key>;
+    prev[key as keyof M] = (async (
+      args: Parameters<ValkeyIndexFunction<T, R, M, typeof key>>[1],
+      options?: ValkeyIndexHandlerOptions,
+    ) => {
+      return (val as M[typeof key])(ops, args, options);
+    }) as ValkeyIndexFunction<T, R, M, typeof key>;
     return prev;
-  }, {} as ValkeyIndexInterface<T, M>);
+  }, {} as ValkeyIndexInterface<T, R, M>);
 
   return {
     ...ops,
     func,
     f: func,
-    get: func.get as ValkeyIndexFunction<T, M, "get">,
-    set: func.set as ValkeyIndexFunction<T, M, "set">,
-    append: func.append as ValkeyIndexFunction<T, M, "append">,
-    range: func.range as ValkeyIndexFunction<T, M, "range">,
-    read: func.read as ValkeyIndexFunction<T, M, "read">,
+    set: func.set,
+    append: func.append,
+    range: func.range,
+    read: func.read,
   };
 }

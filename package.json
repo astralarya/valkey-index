@@ -3,7 +3,7 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "pretest": "podman run --rm --detach --name valkey-index-test --publish 127.0.0.1:6379:6379 valkey/valkey",
+    "pretest": "podman stop valkey-index-test ; podman run --rm --detach --name valkey-index-test --publish 127.0.0.1:6379:6379 valkey/valkey",
     "test": "bun test || (podman stop valkey-index-test && false)",
     "posttest": "podman stop valkey-index-test"
   },
