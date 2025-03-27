@@ -14,7 +14,8 @@ export type ValkeyIndex<R extends KeyPart> = {
   // name/relation limited to alphanum, underscore, dot
   name: string;
   related?: (
-    pkey: KeyPart,
+    ops: ValkeyIndexOps<KeyPart>,
+    pkey: KeyPart
   ) => Promise<Record<R, KeyPart[] | KeyPart | undefined>>;
   ttl?: number | null;
   maxlen?: number | null;
@@ -31,13 +32,14 @@ export type ValkeyIndexOps<R extends KeyPart> = {
   maxlen?: number | null;
   toKey: (id: KeyPart, relation?: string) => string;
   pkeysVia: (relation: string, fkey: KeyPart) => Promise<string[]>;
-  related:
-    | ((pkey: KeyPart) => Promise<Record<R, KeyPart[] | KeyPart | undefined>>)
-    | undefined;
+  related?: (
+    ops: ValkeyIndexOps<KeyPart>,
+    pkey: KeyPart
+  ) => Promise<Record<R, KeyPart[] | KeyPart | undefined>>;
   touch: (
     pipeline: ChainableCommander,
     pkey: KeyPart,
-    options?: ValkeyIndexHandlerOptions,
+    options?: ValkeyIndexHandlerOptions
   ) => Promise<number>;
   subscribe: (x: {
     pkey: KeyPart;
@@ -56,27 +58,27 @@ export type ValkeyIndexOps<R extends KeyPart> = {
 
 export type ValkeyIndexCommand<A, T> = (
   arg: A,
-  options?: ValkeyIndexHandlerOptions,
+  options?: ValkeyIndexHandlerOptions
 ) => Promise<T>;
 export type ValkeyIndexHandler<A> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions,
+  options?: ValkeyIndexHandlerOptions
 ) => Promise<void>;
 export type ValkeyIndexItemHandler<A, T> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions,
+  options?: ValkeyIndexHandlerOptions
 ) => Promise<T>;
 export type ValkeyIndexStreamHandler<A, T> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions,
+  options?: ValkeyIndexHandlerOptions
 ) => Promise<StreamItem<T | undefined>[]>;
 export type ValkeyIndexSubscriptionHandler<A, T> = (
   ops: ValkeyIndexOps<KeyPart>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions,
+  options?: ValkeyIndexHandlerOptions
 ) => AsyncGenerator<StreamItem<T | undefined>>;
 
 export type ValkeyIndexSpec<T> = Record<
@@ -94,23 +96,22 @@ export type ValkeyIndexSpec<T> = Record<
 export type ValkeyIndexFunction<
   T,
   M extends ValkeyIndexSpec<T>,
-  K extends keyof M,
-> =
-  M[K] extends ValkeyIndexHandler<infer A>
-    ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<void>
-    : M[K] extends ValkeyIndexItemHandler<infer A, infer R>
-      ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<R>
-      : M[K] extends ValkeyIndexStreamHandler<infer A, infer R>
-        ? (
-            arg: A,
-            options?: ValkeyIndexHandlerOptions,
-          ) => Promise<StreamItem<R | undefined>[]>
-        : M[K] extends ValkeyIndexSubscriptionHandler<infer A, infer R>
-          ? (
-              arg: A,
-              options?: ValkeyIndexHandlerOptions,
-            ) => Promise<AsyncGenerator<StreamItem<R | undefined>>>
-          : never;
+  K extends keyof M
+> = M[K] extends ValkeyIndexHandler<infer A>
+  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<void>
+  : M[K] extends ValkeyIndexItemHandler<infer A, infer R>
+  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<R>
+  : M[K] extends ValkeyIndexStreamHandler<infer A, infer R>
+  ? (
+      arg: A,
+      options?: ValkeyIndexHandlerOptions
+    ) => Promise<StreamItem<R | undefined>[]>
+  : M[K] extends ValkeyIndexSubscriptionHandler<infer A, infer R>
+  ? (
+      arg: A,
+      options?: ValkeyIndexHandlerOptions
+    ) => Promise<AsyncGenerator<StreamItem<R | undefined>>>
+  : never;
 
 export type ValkeyIndexInterface<T, M extends ValkeyIndexSpec<T>> = {
   [K in keyof M]: ValkeyIndexFunction<T, M, K>;
@@ -124,7 +125,7 @@ export type StreamItem<T> = {
 export function createValkeyIndex<
   T,
   R extends KeyPart,
-  M extends ValkeyIndexSpec<T>,
+  M extends ValkeyIndexSpec<T>
 >(
   {
     valkey,
@@ -133,7 +134,7 @@ export function createValkeyIndex<
     ttl = DEFAULT_TTL,
     maxlen = DEFAULT_MAXLEN,
   }: ValkeyIndex<R>,
-  functions = {} as M,
+  functions = {} as M
 ) {
   function toKey(id: KeyPart, relation?: string) {
     if (relation) {
@@ -153,7 +154,7 @@ export function createValkeyIndex<
     relation: string,
     pkey: KeyPart,
     fkey: KeyPart,
-    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions,
+    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions
   ) {
     let exec_count = 0;
     const key = toKey(fkey, relation);
@@ -190,12 +191,12 @@ export function createValkeyIndex<
   async function touch(
     pipeline: ChainableCommander,
     pkey: KeyPart,
-    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions = {},
+    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions = {}
   ) {
     let exec_count = 0;
     const key = toKey(pkey);
     const exists = (await valkey.exists(key)) !== 0;
-    const relations = related ? await related(key) : null;
+    const relations = related ? await related(ops, key) : null;
     if (ttl_in instanceof Date) {
       pipeline.expireat(key, ttl_in.valueOf());
       exec_count += 1;
@@ -235,7 +236,7 @@ export function createValkeyIndex<
                 {
                   ttl: ttl_in,
                   message,
-                },
+                }
               );
             });
           } else if (fkey !== undefined) {
@@ -247,7 +248,7 @@ export function createValkeyIndex<
               {
                 ttl: ttl_in,
                 message,
-              },
+              }
             );
           }
         }
@@ -328,7 +329,7 @@ export function createValkeyIndex<
 
   async function del(pkey: KeyPart) {
     const key = toKey(pkey);
-    const relations = related ? await related(key) : null;
+    const relations = related ? await related(ops, key) : null;
     const pipeline = valkey.multi();
     if (relations) {
       for (const [relation, fkey] of Object.entries(relations)) {
@@ -364,15 +365,12 @@ export function createValkeyIndex<
     delVia,
   };
 
-  const func = Object.entries(functions).reduce(
-    (prev, [key, val]) => {
-      prev[key as keyof M] = (async (...args) => {
-        return val(ops, ...args);
-      }) as ValkeyIndexFunction<T, M, typeof key>;
-      return prev;
-    },
-    {} as ValkeyIndexInterface<T, M>,
-  );
+  const func = Object.entries(functions).reduce((prev, [key, val]) => {
+    prev[key as keyof M] = (async (...args) => {
+      return val(ops, ...args);
+    }) as ValkeyIndexFunction<T, M, typeof key>;
+    return prev;
+  }, {} as ValkeyIndexInterface<T, M>);
 
   return {
     ...ops,
