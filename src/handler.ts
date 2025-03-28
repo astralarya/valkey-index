@@ -9,6 +9,7 @@ import {
   type ValkeyIndexSetter,
   type ValkeyIndexStreamHandler,
   type ValkeyIndexSubscriptionHandler,
+  type ValkeyIndexUpdater,
 } from ".";
 
 export type ValueSerializer<T> = (
@@ -63,7 +64,7 @@ export function setHash<T>({
 }: {
   convert?: ValueSerializer<T>;
 } = {}): ValkeyIndexSetter<T, any> {
-  return async function set(_ops, pipeline, { key, input }, options) {
+  return async function set(_ops, pipeline, { key, input }) {
     if (input === undefined) {
       return;
     }
@@ -79,26 +80,18 @@ export function updateHash<T>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<Partial<T>>;
-} = {}): ValkeyIndexHandler<{ pkey: string; input: Partial<T> }, T, any> {
-  return async function update(
-    { valkey, toKey, touch },
-    { pkey, input },
-    options,
-  ) {
-    const key = toKey(pkey);
+} = {}): ValkeyIndexUpdater<T, any> {
+  return async function update(_ops, pipeline, { key, input }) {
     const value = convert(input);
     if (value === undefined) {
       return;
     }
-    const pipeline = valkey.multi();
     for (const [field, field_value] of Object.entries(value)) {
       if (field_value === undefined) {
         continue;
       }
       pipeline.hset(key, field, field_value);
     }
-    await touch(pipeline, { pkey, value: input }, options);
-    await pipeline.exec();
   };
 }
 

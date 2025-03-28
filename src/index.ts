@@ -15,6 +15,7 @@ export type ValkeyIndex<T, R extends keyof T> = {
   name: string;
   get?: ValkeyIndexGetter<T, R>;
   set?: ValkeyIndexSetter<T, R>;
+  update?: ValkeyIndexUpdater<T, R>;
   related?: (
     value: Partial<T>,
   ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
@@ -34,6 +35,13 @@ export type ValkeyIndexSetter<T, R extends keyof T> = (
   options?: ValkeyIndexHandlerOptions,
 ) => void;
 
+export type ValkeyIndexUpdater<T, R extends keyof T> = (
+  ops: ValkeyIndexOps<T, R>,
+  pipeline: ChainableCommander,
+  arg: { key: string; input: Partial<T> },
+  options?: ValkeyIndexHandlerOptions,
+) => void;
+
 export type ValkeyIndexHandlerOptions = {
   ttl?: Date | number;
   message?: string;
@@ -50,6 +58,10 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
     arg: { pkey: string; input: T },
     options: ValkeyIndexHandlerOptions,
   ) => Promise<void>;
+  update?: (
+    arg: { pkey: string; input: Partial<T> },
+    options: ValkeyIndexHandlerOptions,
+  ) => Promise<void>;
   related: (
     value: Partial<T>,
   ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
@@ -60,7 +72,7 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
       value?: Partial<T>;
     },
     options?: ValkeyIndexHandlerOptions,
-  ) => Promise<number>;
+  ) => Promise<void>;
   subscribe: (x: {
     pkey: KeyPart;
     signal?: AbortSignal | undefined;
@@ -155,7 +167,7 @@ export function calculateRm<R extends KeyPart>({
   next?: Record<R, unknown | unknown[] | undefined>;
 }) {
   return curr
-    ? Object.fromEntries(
+    ? (Object.fromEntries(
         (Object.entries(curr) as [R, KeyPart | KeyPart[] | undefined][]).map(
           ([relation, fkeys]): [R, KeyPart | KeyPart[] | undefined] => {
             if (!next || !next[relation]) {
@@ -190,7 +202,7 @@ export function calculateRm<R extends KeyPart>({
             }
           },
         ),
-      )
+      ) as Record<R, KeyPart | KeyPart[] | undefined>)
     : undefined;
 }
 
@@ -209,6 +221,12 @@ export function createValkeyIndex<
     ? undefined
     : (
         arg: { pkey: string; input: T },
+        options?: ValkeyIndexHandlerOptions,
+      ) => Promise<void>;
+  update: (typeof index)["set"] extends undefined
+    ? undefined
+    : (
+        arg: { pkey: string; input: Partial<T> },
         options?: ValkeyIndexHandlerOptions,
       ) => Promise<void>;
   func: ValkeyIndexInterface<T, R, M>;
@@ -234,6 +252,7 @@ export function createValkeyIndex<
     name,
     get: get_,
     set: set_,
+    update: update_,
     related = () => ({} as Record<R, string>),
     ttl = DEFAULT_TTL,
     maxlen = DEFAULT_MAXLEN,
@@ -258,7 +277,7 @@ export function createValkeyIndex<
       throw "valkey-index: get() invoked without being defined";
     }
     const key = toKey(pkey);
-    const value = await get_(ops, key);
+    const value = await get_!(ops, key);
     const pipeline = valkey.multi();
     await touch(pipeline, { pkey, value }, options);
     await pipeline.exec();
@@ -269,13 +288,30 @@ export function createValkeyIndex<
     { pkey, input }: { pkey: KeyPart; input: T },
     options?: ValkeyIndexHandlerOptions,
   ) {
-    if (!set_) {
-      throw "valkey-index: get() invoked without being defined";
-    }
     const key = toKey(pkey);
+    const curr_value = await get_!(ops, key);
+    const curr = curr_value ? related(curr_value) : undefined;
+    const next = related(input);
+    const rm = calculateRm({ curr, next });
     const pipeline = valkey.multi();
-    const value = set_(ops, pipeline, { key, input }, options);
-    await touch(pipeline, { pkey, value: input }, options);
+    const value = set_!(ops, pipeline, { key, input }, options);
+    await touch(pipeline, { pkey, value: input, rm }, options);
+    await pipeline.exec();
+    return value;
+  }
+
+  async function update(
+    { pkey, input }: { pkey: KeyPart; input: Partial<T> },
+    options?: ValkeyIndexHandlerOptions,
+  ) {
+    const key = toKey(pkey);
+    const curr_value = await get_!(ops, key);
+    const curr = curr_value ? related(curr_value) : undefined;
+    const next = related(input);
+    const rm = calculateRm({ curr, next });
+    const pipeline = valkey.multi();
+    const value = update_!(ops, pipeline, { key, input }, options);
+    await touch(pipeline, { pkey, value: input, rm }, options);
     await pipeline.exec();
     return value;
   }
@@ -287,36 +323,26 @@ export function createValkeyIndex<
     fkey: KeyPart,
     { ttl: ttl_in, message }: ValkeyIndexHandlerOptions,
   ) {
-    let exec_count = 0;
     const key = toKey(fkey, relation);
     if (ttl_in instanceof Date) {
       pipeline.zadd(key, ttl_in.valueOf(), String(pkey));
-      exec_count += 1;
     } else if (typeof ttl_in === "number") {
       pipeline.zadd(key, Date.now() + ttl_in, String(pkey));
-      exec_count += 1;
     } else if (ttl !== null) {
       pipeline.zadd(key, Date.now() + ttl, String(pkey));
-      exec_count += 1;
     } else {
       pipeline.zadd(key, "+inf", String(pkey));
-      exec_count += 1;
     }
     if (ttl !== null) {
       pipeline.expire(key, ttl);
-      exec_count += 1;
     }
     if (message !== undefined) {
       pipeline.publish(key, message);
-      exec_count += 1;
     }
     pipeline.zremrangebyscore(key, "-inf", Date.now());
-    exec_count += 1;
     if (maxlen !== null) {
       pipeline.zremrangebyrank(key, 0, -maxlen - 1);
-      exec_count += 1;
     }
-    return exec_count;
   }
 
   async function touch(
@@ -324,29 +350,37 @@ export function createValkeyIndex<
     {
       pkey,
       value,
+      rm,
     }: {
       pkey: KeyPart;
       value?: Partial<T>;
+      rm?: Record<R, KeyPart[] | KeyPart | undefined>;
     },
     { ttl: ttl_in, message }: ValkeyIndexHandlerOptions = {},
   ) {
-    let exec_count = 0;
     const key = toKey(pkey);
     const exists = (await valkey.exists(key)) !== 0;
     const relations = value && related ? related(value) : undefined;
     if (ttl_in instanceof Date) {
       pipeline.expireat(key, ttl_in.valueOf());
-      exec_count += 1;
     } else if (typeof ttl_in === "number") {
       pipeline.expire(key, ttl_in);
-      exec_count += 1;
     } else if (ttl) {
       pipeline.expire(key, ttl);
-      exec_count += 1;
     }
     if (message !== undefined) {
       pipeline.publish(key, message);
-      exec_count += 1;
+    }
+    if (rm) {
+      for (const [relation, fkey] of Object.entries(rm)) {
+        if (Array.isArray(fkey)) {
+          fkey.forEach((item) => {
+            pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
+          });
+        } else if (fkey !== undefined) {
+          pipeline.zrem(toKey(fkey as KeyPart, relation), String(pkey));
+        }
+      }
     }
     if (relations) {
       if (!exists) {
@@ -354,44 +388,29 @@ export function createValkeyIndex<
           if (Array.isArray(fkey)) {
             fkey.forEach((item) => {
               pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
-              exec_count += 1;
             });
           } else if (fkey !== undefined) {
             pipeline.zrem(toKey(fkey as KeyPart, relation), String(pkey));
-            exec_count += 1;
           }
         }
       } else {
         for (const [relation, fkey] of Object.entries(relations)) {
           if (Array.isArray(fkey)) {
             fkey.forEach((item) => {
-              exec_count += touchRelated(
-                pipeline,
-                relation,
-                pkey,
-                item as KeyPart,
-                {
-                  ttl: ttl_in,
-                  message,
-                },
-              );
-            });
-          } else if (fkey !== undefined) {
-            exec_count += touchRelated(
-              pipeline,
-              relation,
-              pkey,
-              fkey as KeyPart,
-              {
+              touchRelated(pipeline, relation, pkey, item as KeyPart, {
                 ttl: ttl_in,
                 message,
-              },
-            );
+              });
+            });
+          } else if (fkey !== undefined) {
+            touchRelated(pipeline, relation, pkey, fkey as KeyPart, {
+              ttl: ttl_in,
+              message,
+            });
           }
         }
       }
     }
-    return exec_count;
   }
 
   // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
@@ -495,7 +514,7 @@ export function createValkeyIndex<
     valkey,
     toKey,
     pkeysVia,
-    ...{ get, set },
+    ...{ get, set, update },
     related,
     touch,
     subscribe,
