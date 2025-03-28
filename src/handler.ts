@@ -72,6 +72,7 @@ export function setHash<T>({
     if (value === undefined) {
       return;
     }
+    pipeline.del(key);
     pipeline.hset(key, value);
   };
 }
