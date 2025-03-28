@@ -29,8 +29,8 @@ const hashIndex = createValkeyIndex({
 const relationIndex = createValkeyIndex({
   valkey,
   name: "relation",
-  get: getHash<TestObject>(),
   related: relatedHash({ fields: ["bar"] }),
+  get: getHash<TestObject>(),
   set: setHash<TestObject>(),
 });
 

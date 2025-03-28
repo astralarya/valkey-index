@@ -13,12 +13,12 @@ export type ValkeyIndex<T, R extends keyof T> = {
   valkey: Redis;
   // name/relation limited to alphanum, underscore, dot
   name: string;
-  get?: ValkeyIndexGetter<T, R>;
-  set?: ValkeyIndexSetter<T, R>;
-  update?: ValkeyIndexUpdater<T, R>;
   related?: (
     value: Partial<T>,
   ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
+  get?: ValkeyIndexGetter<T, R>;
+  set?: ValkeyIndexSetter<T, R>;
+  update?: ValkeyIndexUpdater<T, R>;
   ttl?: number | null;
   maxlen?: number | null;
 };
@@ -53,6 +53,9 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
   maxlen?: number | null;
   toKey: (id: KeyPart, relation?: string) => string;
   pkeysVia: (relation: string, fkey: KeyPart) => Promise<string[]>;
+  related: (
+    value: Partial<T>,
+  ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
   get?: (pkey: string) => Promise<T | undefined>;
   set?: (
     arg: { pkey: string; input: T },
@@ -62,9 +65,6 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
     arg: { pkey: string; input: Partial<T> },
     options: ValkeyIndexHandlerOptions,
   ) => Promise<void>;
-  related: (
-    value: Partial<T>,
-  ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
   touch: (
     pipeline: ChainableCommander,
     arg: {
@@ -213,7 +213,7 @@ export function createValkeyIndex<
 >(
   index: ValkeyIndex<T, R>,
   functions?: M,
-): Omit<ValkeyIndexOps<T, R>, "get"> & {
+): Omit<ValkeyIndexOps<T, R>, "get" | "set" | "update"> & {
   get: (typeof index)["get"] extends undefined
     ? undefined
     : (pkey: string) => Promise<T | undefined>;
@@ -250,10 +250,10 @@ export function createValkeyIndex<
   {
     valkey,
     name,
+    related = () => ({} as Record<R, string>),
     get: get_,
     set: set_,
     update: update_,
-    related = () => ({} as Record<R, string>),
     ttl = DEFAULT_TTL,
     maxlen = DEFAULT_MAXLEN,
   }: ValkeyIndex<T, R>,

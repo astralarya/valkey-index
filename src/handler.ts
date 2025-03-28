@@ -48,6 +48,22 @@ export function assembleRecord(fields: string[]) {
   return r;
 }
 
+export function relatedHash<T, R extends keyof T>({ fields }: { fields: R[] }) {
+  return function related(value: Partial<T>) {
+    const results = Object.fromEntries(
+      Object.entries(value)
+        ?.filter(([field]) => fields.findIndex((x) => x === field) !== -1)
+        ?.map(([field, fval]) => {
+          if (Array.isArray(fval)) {
+            return [field, fval.map((x) => String(x))];
+          }
+          return [field, String(fval)];
+        }) ?? [],
+    );
+    return results as Record<R, KeyPart | KeyPart[] | undefined>;
+  };
+}
+
 export function getHash<T>({
   convert = DEFAULT_DESERIALIZER,
 }: {
@@ -93,22 +109,6 @@ export function updateHash<T>({
       }
       pipeline.hset(key, field, field_value);
     }
-  };
-}
-
-export function relatedHash<T, R extends keyof T>({ fields }: { fields: R[] }) {
-  return function related(value: Partial<T>) {
-    const results = Object.fromEntries(
-      Object.entries(value)
-        ?.filter(([field]) => fields.findIndex((x) => x === field) !== -1)
-        ?.map(([field, fval]) => {
-          if (Array.isArray(fval)) {
-            return [field, fval.map((x) => String(x))];
-          }
-          return [field, String(fval)];
-        }) ?? [],
-    );
-    return results as Record<R, KeyPart | KeyPart[] | undefined>;
   };
 }
 
