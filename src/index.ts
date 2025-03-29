@@ -50,6 +50,8 @@ export type ValkeyIndexHandlerOptions = {
 
 export type ValkeyIndexOps<T, R extends keyof T> = {
   valkey: Redis;
+  name: string;
+  related_name: R[];
   ttl?: number | null;
   maxlen?: number | null;
   toKey: (id: KeyPart, relation?: R) => string;
@@ -218,7 +220,7 @@ export function createValkeyIndex<
   {
     valkey,
     name,
-    related: related_,
+    related: related_name,
     get: get_,
     set: set_,
     update: update_,
@@ -238,7 +240,9 @@ export function createValkeyIndex<
   function related(value: Partial<T>) {
     const results = Object.fromEntries(
       Object.entries(value)
-        ?.filter(([field]) => related_?.findIndex((x) => x === field) !== -1)
+        ?.filter(
+          ([field]) => related_name?.findIndex((x) => x === field) !== -1,
+        )
         ?.map(([field, fval]) => {
           if (Array.isArray(fval)) {
             return [field, fval.map((x) => String(x))];
@@ -259,7 +263,7 @@ export function createValkeyIndex<
       throw "valkey-index: get() invoked without being defined";
     }
     const key = toKey(pkey);
-    const value = await get_!(ops, key);
+    const value = await get_(ops, key);
     const pipeline = valkey.multi();
     await touch(pipeline, { pkey, value }, options);
     await pipeline.exec();
@@ -270,13 +274,19 @@ export function createValkeyIndex<
     { pkey, input }: { pkey: KeyPart; input: T },
     options?: ValkeyIndexHandlerOptions,
   ) {
+    if (!get_) {
+      throw "valkey-index: set() invoked without get() being defined";
+    }
+    if (!set_) {
+      throw "valkey-index: set() invoked without being defined";
+    }
     const key = toKey(pkey);
-    const curr_value = await get_!(ops, key);
+    const curr_value = await get_(ops, key);
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
     const rm = calculateRm<T, R>({ curr, next });
     const pipeline = valkey.multi();
-    const value = await set_!(ops, pipeline, { key, input }, options);
+    const value = await set_(ops, pipeline, { key, input }, options);
     await touch(pipeline, { pkey, value: input, rm }, options);
     await pipeline.exec();
     return value;
@@ -286,6 +296,12 @@ export function createValkeyIndex<
     { pkey, input }: { pkey: KeyPart; input: Partial<T> },
     options?: ValkeyIndexHandlerOptions,
   ) {
+    if (!get_) {
+      throw "valkey-index: update() invoked without get() being defined";
+    }
+    if (!update_) {
+      throw "valkey-index: update() invoked without being defined";
+    }
     const key = toKey(pkey);
     const curr_value = await get_!(ops, key);
     const curr = curr_value ? related(curr_value) : undefined;
@@ -506,6 +522,8 @@ export function createValkeyIndex<
 
   const ops: ValkeyIndexOps<T, R> = {
     valkey,
+    name,
+    related_name,
     toKey,
     pkeysVia,
     ...{ get, set, update },
