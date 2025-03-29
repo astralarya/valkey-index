@@ -6,8 +6,6 @@ import {
   type ValkeyIndexGetter,
   type ValkeyIndexHandler,
   type ValkeyIndexSetter,
-  type ValkeyIndexStreamHandler,
-  type ValkeyIndexSubscriptionHandler,
   type ValkeyIndexUpdater,
 } from ".";
 
@@ -126,7 +124,8 @@ export function appendStream<T, R extends string = "">({
     id?: string;
   },
   T,
-  R
+  R,
+  void
 > {
   return async function append(
     { valkey, toKey, touch, ttl = null, maxlen = null },
@@ -165,10 +164,11 @@ export function rangeStream<T, R extends string = "">({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
-} = {}): ValkeyIndexStreamHandler<
+} = {}): ValkeyIndexHandler<
   { pkey: string; start?: string; stop?: string },
   T,
-  R
+  R,
+  Promise<StreamItem<T | undefined>[]>
 > {
   return async function range(
     { valkey, toKey, touch, ttl = null, maxlen = null },
@@ -203,10 +203,11 @@ export function readStream<T, R extends string = "">({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
-} = {}): ValkeyIndexSubscriptionHandler<
+} = {}): ValkeyIndexHandler<
   { pkey: string; lastId?: string; signal?: AbortSignal },
   T,
-  R
+  R,
+  AsyncGenerator<StreamItem<T | undefined>>
 > {
   return async function* read(
     ops,

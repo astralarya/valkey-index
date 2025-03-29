@@ -92,37 +92,16 @@ export type ValkeyIndexCommand<A, T> = (
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
-export type ValkeyIndexHandler<A, T, R extends string> = (
+export type ValkeyIndexHandler<A, T, R extends string, V> = (
   ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
-) => Promise<void>;
-export type ValkeyIndexItemHandler<A, T, R extends string> = (
-  ops: ValkeyIndexOps<T, R>,
-  arg: A,
-  options?: ValkeyIndexHandlerOptions,
-) => Promise<T>;
-export type ValkeyIndexStreamHandler<A, T, R extends string> = (
-  ops: ValkeyIndexOps<T, R>,
-  arg: A,
-  options?: ValkeyIndexHandlerOptions,
-) => Promise<StreamItem<T | undefined>[]>;
-export type ValkeyIndexSubscriptionHandler<A, T, R extends string> = (
-  ops: ValkeyIndexOps<T, R>,
-  arg: A,
-  options?: ValkeyIndexHandlerOptions,
-) => AsyncGenerator<StreamItem<T | undefined>>;
+) => V;
 
 export type ValkeyIndexSpec<T, R extends string> = Record<
   string,
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexHandler<any, T, R>
-  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexItemHandler<any, T, R>
-  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexStreamHandler<any, T, R>
-  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  | ValkeyIndexSubscriptionHandler<any, T, R>
+  ValkeyIndexHandler<any, T, R, any>
 >;
 
 export type ValkeyIndexFunction<
@@ -130,20 +109,8 @@ export type ValkeyIndexFunction<
   R extends string,
   M extends ValkeyIndexSpec<T, R>,
   K extends keyof M,
-> = M[K] extends ValkeyIndexHandler<infer A, T, R>
-  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<void>
-  : M[K] extends ValkeyIndexItemHandler<infer A, T, R>
-  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<unknown>
-  : M[K] extends ValkeyIndexStreamHandler<infer A, T, R>
-  ? (
-      arg: A,
-      options?: ValkeyIndexHandlerOptions,
-    ) => Promise<StreamItem<T | undefined>[]>
-  : M[K] extends ValkeyIndexSubscriptionHandler<infer A, T, R>
-  ? (
-      arg: A,
-      options?: ValkeyIndexHandlerOptions,
-    ) => Promise<AsyncGenerator<StreamItem<R | undefined>>>
+> = M[K] extends ValkeyIndexHandler<infer A, T, R, infer V>
+  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<V>
   : never;
 
 export type ValkeyIndexInterface<

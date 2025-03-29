@@ -34,6 +34,7 @@ const hashIndex = createValkeyIndex(
   {
     use: async ({ valkey, get }, pkey: string, op) => {
       get!(pkey);
+      return null;
     },
   },
 );
