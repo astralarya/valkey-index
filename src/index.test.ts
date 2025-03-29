@@ -1,10 +1,13 @@
 import Valkey from "iovalkey";
 import {
+  appendStream,
   createValkeyIndex,
   getHash,
-  relatedHash,
+  rangeStream,
+  readStream,
   setHash,
   updateHash,
+  type Exemplar,
 } from ".";
 
 const valkey = new Valkey({
@@ -28,7 +31,9 @@ const hashIndex = createValkeyIndex(
   {
     valkey,
     name: "hash",
-    get: getHash<TestObject>(),
+    exemplar: 0 as Exemplar<TestObject>,
+    related: [],
+    get: getHash(),
     set: setHash(),
     update: updateHash(),
   },
@@ -77,7 +82,8 @@ const relationIndex = createValkeyIndex(
   {
     valkey,
     name: "relation",
-    related: relatedHash<TestObject, "bar" | "baz">({ fields: ["bar", "baz"] }),
+    exemplar: 0 as Exemplar<TestObject>,
+    related: ["bar", "baz"],
     get: getHash(),
     set: setHash(),
     update: updateHash(),
@@ -158,3 +164,16 @@ test("Relation index", async () => {
   expect(await relationIndex.pkeysVia("baz", 4)).toEqual([]);
   expect(await relationIndex.pkeysVia("baz", 5)).toEqual(["1"]);
 });
+
+// const streamIndex = _createValkeyIndex(
+//   {
+//     valkey,
+//     name: "stream",
+//     related: relatedHash<TestObject, "foo">({ fields: ["foo"] }),
+//   },
+//   {
+//     append: appendStream(),
+//     range: rangeStream(),
+//     read: readStream(),
+//   },
+// );

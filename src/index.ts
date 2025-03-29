@@ -9,13 +9,14 @@ export const DEFAULT_MAXLEN = 8;
 
 export type KeyPart = string | number | symbol;
 
-export type ValkeyIndexOptions<T, R extends string> = {
+export type Exemplar<T> = T | 0;
+
+export type ValkeyIndexOptions<T, R extends keyof T> = {
   valkey: Redis;
   // name/relation limited to alphanum, underscore, dot
   name: string;
-  related?: (
-    value: Partial<T>,
-  ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
+  exemplar: Exemplar<T>;
+  related: R[];
   get?: ValkeyIndexGetter<T, R>;
   set?: ValkeyIndexSetter<T, R>;
   update?: ValkeyIndexUpdater<T, R>;
@@ -23,19 +24,19 @@ export type ValkeyIndexOptions<T, R extends string> = {
   maxlen?: number | null;
 };
 
-export type ValkeyIndexGetter<T, R extends string> = (
+export type ValkeyIndexGetter<T, R extends keyof T> = (
   ops: ValkeyIndexOps<T, R>,
   key: string,
 ) => Promise<T | undefined>;
 
-export type ValkeyIndexSetter<T, R extends string> = (
+export type ValkeyIndexSetter<T, R extends keyof T> = (
   ops: ValkeyIndexOps<T, R>,
   pipeline: ChainableCommander,
   arg: { key: string; input: T },
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<void> | void;
 
-export type ValkeyIndexUpdater<T, R extends string> = (
+export type ValkeyIndexUpdater<T, R extends keyof T> = (
   ops: ValkeyIndexOps<T, R>,
   pipeline: ChainableCommander,
   arg: { key: string; input: Partial<T> },
@@ -47,7 +48,7 @@ export type ValkeyIndexHandlerOptions = {
   message?: string;
 };
 
-export type ValkeyIndexOps<T, R extends string> = {
+export type ValkeyIndexOps<T, R extends keyof T> = {
   valkey: Redis;
   ttl?: number | null;
   maxlen?: number | null;
@@ -92,13 +93,13 @@ export type ValkeyIndexCommand<A, T> = (
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
-export type ValkeyIndexHandler<A, T, R extends string, V> = (
+export type ValkeyIndexHandler<A, T, R extends keyof T, V> = (
   ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => V;
 
-export type ValkeyIndexSpec<T, R extends string> = Record<
+export type ValkeyIndexSpec<T, R extends keyof T> = Record<
   string,
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   ValkeyIndexHandler<any, T, R, any>
@@ -106,7 +107,7 @@ export type ValkeyIndexSpec<T, R extends string> = Record<
 
 export type ValkeyIndexFunction<
   T,
-  R extends string,
+  R extends keyof T,
   M extends ValkeyIndexSpec<T, R>,
   K extends keyof M,
 > = M[K] extends ValkeyIndexHandler<infer A, T, R, infer V>
@@ -115,7 +116,7 @@ export type ValkeyIndexFunction<
 
 export type ValkeyIndexInterface<
   T,
-  R extends string,
+  R extends keyof T,
   M extends ValkeyIndexSpec<T, R>,
 > = {
   [K in keyof M]: ValkeyIndexFunction<T, R, M, K>;
@@ -126,7 +127,7 @@ export type StreamItem<T> = {
   data: T;
 };
 
-export function calculateRm<R extends string>({
+export function calculateRm<T, R extends keyof T>({
   curr,
   next,
 }: {
@@ -175,7 +176,7 @@ export function calculateRm<R extends string>({
 
 export function createValkeyIndex<
   T,
-  R extends string,
+  R extends keyof T,
   M extends ValkeyIndexSpec<T, R>,
 >(
   index: ValkeyIndexOptions<T, R>,
@@ -211,13 +212,13 @@ export function createValkeyIndex<
 
 export function createValkeyIndex<
   T,
-  R extends string,
+  R extends keyof T,
   M extends ValkeyIndexSpec<T, R>,
 >(
   {
     valkey,
     name,
-    related = () => ({} as Record<R, string>),
+    related: related_,
     get: get_,
     set: set_,
     update: update_,
@@ -232,6 +233,20 @@ export function createValkeyIndex<
     } else {
       return `${name}:${String(id)}`;
     }
+  }
+
+  function related(value: Partial<T>) {
+    const results = Object.fromEntries(
+      Object.entries(value)
+        ?.filter(([field]) => related_?.findIndex((x) => x === field) !== -1)
+        ?.map(([field, fval]) => {
+          if (Array.isArray(fval)) {
+            return [field, fval.map((x) => String(x))];
+          }
+          return [field, String(fval)];
+        }) ?? [],
+    );
+    return results as Record<R, KeyPart | KeyPart[] | undefined>;
   }
 
   async function pkeysVia(relation: R, fkey: KeyPart) {
@@ -259,7 +274,7 @@ export function createValkeyIndex<
     const curr_value = await get_!(ops, key);
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
-    const rm = calculateRm({ curr, next });
+    const rm = calculateRm<T, R>({ curr, next });
     const pipeline = valkey.multi();
     const value = await set_!(ops, pipeline, { key, input }, options);
     await touch(pipeline, { pkey, value: input, rm }, options);
@@ -275,7 +290,7 @@ export function createValkeyIndex<
     const curr_value = await get_!(ops, key);
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
-    const rm = calculateRm({ curr, next });
+    const rm = calculateRm<T, R>({ curr, next });
     const pipeline = valkey.multi();
     const value = await update_!(ops, pipeline, { key, input }, options);
     await touch(pipeline, { pkey, value: input, rm }, options);

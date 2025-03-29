@@ -45,27 +45,7 @@ export function assembleRecord(fields: string[]) {
   return r;
 }
 
-export function relatedHash<T, R extends string>({
-  fields,
-}: {
-  fields: readonly R[];
-}) {
-  return function related(value: Partial<T>) {
-    const results = Object.fromEntries(
-      Object.entries(value)
-        ?.filter(([field]) => fields.findIndex((x) => x === field) !== -1)
-        ?.map(([field, fval]) => {
-          if (Array.isArray(fval)) {
-            return [field, fval.map((x) => String(x))];
-          }
-          return [field, String(fval)];
-        }) ?? [],
-    );
-    return results as Record<R, KeyPart | KeyPart[] | undefined>;
-  };
-}
-
-export function getHash<T, R extends string = "">({
+export function getHash<T, R extends string>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
@@ -76,7 +56,7 @@ export function getHash<T, R extends string = "">({
   };
 }
 
-export function setHash<T, R extends string = "">({
+export function setHash<T, R extends string>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
@@ -94,7 +74,7 @@ export function setHash<T, R extends string = "">({
   };
 }
 
-export function updateHash<T, R extends string = "">({
+export function updateHash<T, R extends string>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<Partial<T>>;
@@ -113,7 +93,7 @@ export function updateHash<T, R extends string = "">({
   };
 }
 
-export function appendStream<T, R extends string = "">({
+export function appendStream<T, R extends string>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
@@ -160,7 +140,7 @@ export function appendStream<T, R extends string = "">({
   };
 }
 
-export function rangeStream<T, R extends string = "">({
+export function rangeStream<T, R extends string>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
@@ -199,7 +179,7 @@ export function rangeStream<T, R extends string = "">({
 
 // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
 // until then this leaks connections
-export function readStream<T, R extends string = "">({
+export function readStream<T, R extends string>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
