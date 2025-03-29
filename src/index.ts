@@ -7,6 +7,8 @@ export * from "./handler";
 export const DEFAULT_TTL = 60 * 60 * 24;
 export const DEFAULT_MAXLEN = 8;
 
+export const VALKEY_INDEX_NAME_REGEX = /^[a-zA-Z0-9_\.]+$/;
+
 export type KeyPart = string | number | symbol;
 
 export type Exemplar<T> = T | 0;
@@ -229,6 +231,12 @@ export function createValkeyIndex<
   }: ValkeyIndexOptions<T, R>,
   functions = {} as M,
 ) {
+  if (!VALKEY_INDEX_NAME_REGEX.test(name)) {
+    throw Error(
+      "valkey-index: name may only contain alphanumeric, underscore, and dots",
+    );
+  }
+
   function toKey(id: KeyPart, relation?: R) {
     if (relation) {
       return `${name}/${String(relation)}:${String(id)}`;
@@ -260,7 +268,7 @@ export function createValkeyIndex<
 
   async function get(pkey: KeyPart, options?: ValkeyIndexHandlerOptions) {
     if (!get_) {
-      throw "valkey-index: get() invoked without being defined";
+      throw Error("valkey-index: get() invoked without being defined");
     }
     const key = toKey(pkey);
     const value = await get_(ops, key);
@@ -275,10 +283,10 @@ export function createValkeyIndex<
     options?: ValkeyIndexHandlerOptions,
   ) {
     if (!get_) {
-      throw "valkey-index: set() invoked without get() being defined";
+      throw Error("valkey-index: set() invoked without get() being defined");
     }
     if (!set_) {
-      throw "valkey-index: set() invoked without being defined";
+      throw Error("valkey-index: set() invoked without being defined");
     }
     const key = toKey(pkey);
     const curr_value = await get_(ops, key);
@@ -297,10 +305,10 @@ export function createValkeyIndex<
     options?: ValkeyIndexHandlerOptions,
   ) {
     if (!get_) {
-      throw "valkey-index: update() invoked without get() being defined";
+      throw Error("valkey-index: update() invoked without get() being defined");
     }
     if (!update_) {
-      throw "valkey-index: update() invoked without being defined";
+      throw Error("valkey-index: update() invoked without being defined");
     }
     const key = toKey(pkey);
     const curr_value = await get_!(ops, key);

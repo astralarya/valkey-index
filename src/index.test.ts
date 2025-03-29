@@ -27,6 +27,53 @@ type TestObject = {
   baz?: number;
 };
 
+test("Sanity checks", () => {
+  expect(() => {
+    createValkeyIndex({
+      name: "bad:name",
+      valkey,
+      exemplar: undefined,
+      related: [],
+    });
+  }).toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "bad/name",
+      valkey,
+      exemplar: undefined,
+      related: [],
+    });
+  }).toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "bad-name",
+      valkey,
+      exemplar: undefined,
+      related: [],
+    });
+  }).toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "good_name",
+      valkey,
+      exemplar: undefined,
+      related: [],
+    });
+  }).not.toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "good_name.property",
+      valkey,
+      exemplar: undefined,
+      related: [],
+    });
+  }).not.toThrow(Error);
+});
+
 const hashIndex = createValkeyIndex(
   {
     valkey,
@@ -165,15 +212,20 @@ test("Relation index", async () => {
   expect(await relationIndex.pkeysVia("baz", 5)).toEqual(["1"]);
 });
 
-// const streamIndex = _createValkeyIndex(
-//   {
-//     valkey,
-//     name: "stream",
-//     related: relatedHash<TestObject, "foo">({ fields: ["foo"] }),
-//   },
-//   {
-//     append: appendStream(),
-//     range: rangeStream(),
-//     read: readStream(),
-//   },
-// );
+const streamIndex = createValkeyIndex(
+  {
+    valkey,
+    name: "stream",
+    exemplar: 0 as Exemplar<TestObject>,
+    related: [],
+  },
+  {
+    append: appendStream(),
+    range: rangeStream(),
+    read: readStream(),
+  },
+);
+
+test("Stream index", async () => {
+  // expect(await streamIndex.get("1")).toEqual({});
+});
