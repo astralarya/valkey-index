@@ -26,12 +26,75 @@ const streamIndex = createValkeyIndex(
 test("Stream index", async () => {
   expect(await streamIndex.range({ pkey: "1" })).toEqual([]);
 
-  await streamIndex.append({
-    pkey: "1",
-    input: { foo: "ababa", bar: 0 },
+  setTimeout(async () => {
+    await streamIndex.append({
+      pkey: "1",
+      input: { foo: "ababa", bar: 0 },
+    });
+  }, 10);
+
+  const read1 = await streamIndex.read({ pkey: "1" });
+
+  const next1_1 = (await read1.next()).value;
+  expect(typeof next1_1.id).toBe("string");
+  expect(next1_1).toMatchObject({
+    data: { foo: "ababa", bar: 0 },
   });
 
-  const x = await streamIndex.range({ pkey: "1" });
-  expect(typeof x[0]?.id).toBe("string");
-  expect(x).toMatchObject([{ data: { foo: "ababa", bar: 0 } }]);
+  const range1 = await streamIndex.range({ pkey: "1" });
+  expect(typeof range1[0]?.id).toBe("string");
+  expect(range1).toMatchObject([{ data: { foo: "ababa", bar: 0 } }]);
+
+  setTimeout(async () => {
+    await streamIndex.append({
+      pkey: "1",
+      input: { foo: "lalala", bar: 1 },
+    });
+  }, 10);
+
+  const next1_2 = (await read1.next()).value;
+  expect(typeof next1_2.id).toBe("string");
+  expect(next1_2).toMatchObject({
+    data: { foo: "lalala", bar: 1 },
+  });
+
+  const range2 = await streamIndex.range({ pkey: "1" });
+  expect(typeof range2[0]?.id).toBe("string");
+  expect(range2).toMatchObject([
+    { data: { foo: "ababa", bar: 0 } },
+    { data: { foo: "lalala", bar: 1 } },
+  ]);
+
+  const continue1 = await streamIndex.range({
+    pkey: "1",
+    start: range2[range2.length - 1]?.id,
+  });
+  expect(typeof continue1[0]?.id).toBe("string");
+  expect(continue1).toMatchObject([{ data: { foo: "lalala", bar: 1 } }]);
+
+  const read2 = await streamIndex.read({ pkey: "1", lastId: next1_1.id });
+  const next2_1 = (await read2.next()).value;
+  expect(typeof next2_1.id).toBe("string");
+  expect(next2_1).toMatchObject({
+    data: { foo: "lalala", bar: 1 },
+  });
+
+  setTimeout(async () => {
+    await streamIndex.append({
+      pkey: "1",
+      input: { foo: "gagaga", bar: 2 },
+    });
+  }, 10);
+
+  const next1_3 = (await read1.next()).value;
+  expect(typeof next1_3.id).toBe("string");
+  expect(next1_3).toMatchObject({
+    data: { foo: "gagaga", bar: 2 },
+  });
+
+  const next2_2 = (await read2.next()).value;
+  expect(typeof next2_2.id).toBe("string");
+  expect(next2_2).toMatchObject({
+    data: { foo: "gagaga", bar: 2 },
+  });
 });
