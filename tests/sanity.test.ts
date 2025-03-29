@@ -1,16 +1,7 @@
-import Valkey from "iovalkey";
 import { createValkeyIndex, type Exemplar } from "../src";
+import { useBeforeEach, valkey } from "./index.test";
 
-const valkey = new Valkey({
-  username: process.env.VKUSERNAME,
-  password: process.env.VKPASSWORD,
-  host: process.env.VKHOST,
-  port: process.env.VKPORT ? parseInt(process.env.VKPORT) : undefined,
-});
-
-beforeEach(async () => {
-  await valkey.flushall();
-});
+useBeforeEach();
 
 test("Sanity checks", () => {
   const bad_names = ["bad:name", "bad@name", "bad/name", "bad-name"] as const;

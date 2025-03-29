@@ -1,31 +1,13 @@
-import Valkey from "iovalkey";
 import {
-  appendStream,
   createValkeyIndex,
   getHash,
-  rangeStream,
-  readStream,
   setHash,
   updateHash,
   type Exemplar,
 } from "../src";
+import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
-const valkey = new Valkey({
-  username: process.env.VKUSERNAME,
-  password: process.env.VKPASSWORD,
-  host: process.env.VKHOST,
-  port: process.env.VKPORT ? parseInt(process.env.VKPORT) : undefined,
-});
-
-beforeEach(async () => {
-  await valkey.flushall();
-});
-
-type TestObject = {
-  foo: string;
-  bar: number;
-  baz?: number;
-};
+useBeforeEach();
 
 const hashIndex = createValkeyIndex(
   {
