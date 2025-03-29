@@ -18,7 +18,7 @@ export type ValkeyIndexOptions<T, R extends keyof T> = {
   // name/relation limited to alphanum, underscore, dot
   name: string;
   exemplar: Exemplar<T>;
-  related: R[];
+  relations: R[];
   get?: ValkeyIndexGetter<T, R>;
   set?: ValkeyIndexSetter<T, R>;
   update?: ValkeyIndexUpdater<T, R>;
@@ -53,7 +53,7 @@ export type ValkeyIndexHandlerOptions = {
 export type ValkeyIndexOps<T, R extends keyof T> = {
   valkey: Redis;
   name: string;
-  related_name: R[];
+  relations: R[];
   ttl?: number | null;
   maxlen?: number | null;
   toKey: (id: KeyPart, relation?: R) => string;
@@ -222,7 +222,7 @@ export function createValkeyIndex<
   {
     valkey,
     name,
-    related: related_name,
+    relations,
     get: get_,
     set: set_,
     update: update_,
@@ -236,7 +236,7 @@ export function createValkeyIndex<
       "valkey-index: name may only contain alphanumeric, underscore, and dots",
     );
   }
-  if (related_name.find((x) => !VALKEY_INDEX_NAME_REGEX.test(String(x)))) {
+  if (relations.find((x) => !VALKEY_INDEX_NAME_REGEX.test(String(x)))) {
     throw Error(
       "valkey-index: related names may only contain alphanumeric, underscore, and dots",
     );
@@ -253,9 +253,7 @@ export function createValkeyIndex<
   function related(value: Partial<T>) {
     const results = Object.fromEntries(
       Object.entries(value)
-        ?.filter(
-          ([field]) => related_name?.findIndex((x) => x === field) !== -1,
-        )
+        ?.filter(([field]) => relations?.findIndex((x) => x === field) !== -1)
         ?.map(([field, fval]) => {
           if (Array.isArray(fval)) {
             return [field, fval.map((x) => String(x))];
@@ -536,7 +534,7 @@ export function createValkeyIndex<
   const ops: ValkeyIndexOps<T, R> = {
     valkey,
     name,
-    related_name,
+    relations,
     toKey,
     pkeysVia,
     ...{ get, set, update },

@@ -36,7 +36,7 @@ test("Sanity checks", () => {
         valkey,
         name: bad_name,
         exemplar: undefined,
-        related: [],
+        relations: [],
       });
     }).toThrow(Error);
   });
@@ -47,7 +47,7 @@ test("Sanity checks", () => {
         valkey,
         name: "good_name",
         exemplar: 0 as Exemplar<Record<(typeof bad_names)[typeof idx], 0>>,
-        related: [bad_name],
+        relations: [bad_name],
       });
     }).toThrow(Error);
   });
@@ -57,7 +57,7 @@ test("Sanity checks", () => {
       name: "good_name",
       valkey,
       exemplar: undefined,
-      related: [],
+      relations: [],
     });
   }).not.toThrow(Error);
 
@@ -66,7 +66,7 @@ test("Sanity checks", () => {
       name: "good_name.property",
       valkey,
       exemplar: undefined,
-      related: [],
+      relations: [],
     });
   }).not.toThrow(Error);
 
@@ -75,7 +75,7 @@ test("Sanity checks", () => {
       name: "good_name",
       valkey,
       exemplar: { foo: 0 },
-      related: ["foo"],
+      relations: ["foo"],
     });
   }).not.toThrow(Error);
 
@@ -84,7 +84,7 @@ test("Sanity checks", () => {
       name: "good_name.property",
       valkey,
       exemplar: { foo: 0 },
-      related: ["foo"],
+      relations: ["foo"],
     });
   }).not.toThrow(Error);
 
@@ -93,7 +93,7 @@ test("Sanity checks", () => {
       name: "good_name",
       valkey,
       exemplar: { foo: 0, bar: 0 },
-      related: ["foo", "bar"],
+      relations: ["foo", "bar"],
     });
   }).not.toThrow(Error);
 
@@ -102,7 +102,7 @@ test("Sanity checks", () => {
       name: "good_name.property",
       valkey,
       exemplar: { foo: 0, bar: 0 },
-      related: ["foo", "bar"],
+      relations: ["foo", "bar"],
     });
   }).not.toThrow(Error);
 });
@@ -112,7 +112,7 @@ const hashIndex = createValkeyIndex(
     valkey,
     name: "hash",
     exemplar: 0 as Exemplar<TestObject>,
-    related: [],
+    relations: [],
     get: getHash(),
     set: setHash(),
     update: updateHash(),
@@ -163,7 +163,7 @@ const relationIndex = createValkeyIndex(
     valkey,
     name: "relation",
     exemplar: 0 as Exemplar<TestObject>,
-    related: ["bar", "baz"],
+    relations: ["bar", "baz"],
     get: getHash(),
     set: setHash(),
     update: updateHash(),
@@ -250,7 +250,7 @@ const streamIndex = createValkeyIndex(
     valkey,
     name: "stream",
     exemplar: 0 as Exemplar<TestObject>,
-    related: [],
+    relations: [],
   },
   {
     append: appendStream(),
