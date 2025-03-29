@@ -131,8 +131,7 @@ test("Stream index abort", async () => {
     controller.abort();
   }, 10);
 
-  const error = console.error;
-  jest.spyOn(console, "error").mockImplementation(() => {});
+  const mock = jest.spyOn(console, "error").mockImplementation(() => {});
   expect(await read1.next()).toMatchObject({ done: true });
-  jest.spyOn(console, "error").mockImplementation(error);
+  mock.mockRestore();
 });
