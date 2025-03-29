@@ -225,7 +225,7 @@ export function createValkeyIndex<
         arg: { pkey: string; input: T },
         options?: ValkeyIndexHandlerOptions,
       ) => Promise<void>;
-  update: (typeof index)["set"] extends undefined
+  update: (typeof index)["update"] extends undefined
     ? undefined
     : (
         arg: { pkey: string; input: Partial<T> },
