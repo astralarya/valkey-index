@@ -3,9 +3,9 @@ import { useBeforeEach, valkey } from "./index.test";
 
 useBeforeEach();
 
-test("Sanity checks", () => {
-  const bad_names = ["bad:name", "bad@name", "bad-name"] as const;
+const bad_names = ["bad:name", "bad@name", "bad-name"] as const;
 
+test("Sanity checks", () => {
   bad_names.forEach((bad_name) => {
     expect(() => {
       createValkeyIndex({
