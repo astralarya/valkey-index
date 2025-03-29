@@ -236,10 +236,15 @@ export function createValkeyIndex<
       "valkey-index: name may only contain alphanumeric, underscore, and dots",
     );
   }
+  if (related_name.find((x) => !VALKEY_INDEX_NAME_REGEX.test(String(x)))) {
+    throw Error(
+      "valkey-index: related names may only contain alphanumeric, underscore, and dots",
+    );
+  }
 
   function toKey(id: KeyPart, relation?: R) {
     if (relation) {
-      return `${name}/${String(relation)}:${String(id)}`;
+      return `${name}@${String(relation)}:${String(id)}`;
     } else {
       return `${name}:${String(id)}`;
     }

@@ -28,32 +28,29 @@ type TestObject = {
 };
 
 test("Sanity checks", () => {
-  expect(() => {
-    createValkeyIndex({
-      name: "bad:name",
-      valkey,
-      exemplar: undefined,
-      related: [],
-    });
-  }).toThrow(Error);
+  const bad_names = ["bad:name", "bad@name", "bad/name", "bad-name"] as const;
 
-  expect(() => {
-    createValkeyIndex({
-      name: "bad/name",
-      valkey,
-      exemplar: undefined,
-      related: [],
-    });
-  }).toThrow(Error);
+  bad_names.forEach((bad_name) => {
+    expect(() => {
+      createValkeyIndex({
+        valkey,
+        name: bad_name,
+        exemplar: undefined,
+        related: [],
+      });
+    }).toThrow(Error);
+  });
 
-  expect(() => {
-    createValkeyIndex({
-      name: "bad-name",
-      valkey,
-      exemplar: undefined,
-      related: [],
-    });
-  }).toThrow(Error);
+  bad_names.forEach((bad_name, idx) => {
+    expect(() => {
+      createValkeyIndex({
+        valkey,
+        name: "good_name",
+        exemplar: 0 as Exemplar<Record<(typeof bad_names)[typeof idx], 0>>,
+        related: [bad_name],
+      });
+    }).toThrow(Error);
+  });
 
   expect(() => {
     createValkeyIndex({
@@ -70,6 +67,42 @@ test("Sanity checks", () => {
       valkey,
       exemplar: undefined,
       related: [],
+    });
+  }).not.toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "good_name",
+      valkey,
+      exemplar: { foo: 0 },
+      related: ["foo"],
+    });
+  }).not.toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "good_name.property",
+      valkey,
+      exemplar: { foo: 0 },
+      related: ["foo"],
+    });
+  }).not.toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "good_name",
+      valkey,
+      exemplar: { foo: 0, bar: 0 },
+      related: ["foo", "bar"],
+    });
+  }).not.toThrow(Error);
+
+  expect(() => {
+    createValkeyIndex({
+      name: "good_name.property",
+      valkey,
+      exemplar: { foo: 0, bar: 0 },
+      related: ["foo", "bar"],
     });
   }).not.toThrow(Error);
 });
