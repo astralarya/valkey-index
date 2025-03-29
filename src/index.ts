@@ -503,7 +503,7 @@ export function createValkeyIndex<
   };
 
   const func = Object.entries(functions).reduce((prev, [key, val]) => {
-    prev[key as keyof M] = (async (
+    prev[key as keyof M] = ((
       arg: Parameters<ValkeyIndexFunction<T, R, M, typeof key>>[1],
       options?: ValkeyIndexHandlerOptions,
     ) => {
