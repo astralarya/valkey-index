@@ -9,7 +9,9 @@ export const DEFAULT_MAXLEN = 8;
 
 export type KeyPart = string | number | symbol;
 
-export type ValkeyIndex<T, R extends keyof T> = {
+export type ValkeyIndex<T, R extends keyof T> = {};
+
+export type ValkeyIndexOptions<T, R extends keyof T> = {
   valkey: Redis;
   // name/relation limited to alphanum, underscore, dot
   name: string;
@@ -211,7 +213,7 @@ export function createValkeyIndex<
   R extends keyof T,
   M extends ValkeyIndexSpec<T, R>,
 >(
-  index: ValkeyIndex<T, R>,
+  index: ValkeyIndexOptions<T, R>,
   functions?: M,
 ): Omit<ValkeyIndexOps<T, R>, "get" | "set" | "update"> & {
   get: (typeof index)["get"] extends undefined
@@ -256,7 +258,7 @@ export function createValkeyIndex<
     update: update_,
     ttl = DEFAULT_TTL,
     maxlen = DEFAULT_MAXLEN,
-  }: ValkeyIndex<T, R>,
+  }: ValkeyIndexOptions<T, R>,
   functions = {},
 ) {
   function toKey(id: KeyPart, relation?: string) {

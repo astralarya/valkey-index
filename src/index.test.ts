@@ -7,7 +7,12 @@ import {
   updateHash,
 } from ".";
 
-const valkey = new Valkey();
+const valkey = new Valkey({
+  username: process.env.VKUSERNAME,
+  password: process.env.VKPASSWORD,
+  host: process.env.VKHOST,
+  port: process.env.VKPORT ? parseInt(process.env.VKPORT) : undefined,
+});
 
 beforeEach(async () => {
   await valkey.flushall();
@@ -18,13 +23,20 @@ type TestObject = {
   bar?: number;
 };
 
-const hashIndex = createValkeyIndex({
-  valkey,
-  name: "hash",
-  get: getHash<TestObject>(),
-  set: setHash<TestObject>(),
-  update: updateHash<TestObject>(),
-});
+const hashIndex = createValkeyIndex(
+  {
+    valkey,
+    name: "hash",
+    get: getHash<TestObject>(),
+    set: setHash<TestObject>(),
+    update: updateHash<TestObject>(),
+  },
+  // {
+  //   use: async ({ valkey, get }, pkey: string, op) => {
+  //     get(pkey);
+  //   },
+  // },
+);
 
 const relationIndex = createValkeyIndex({
   valkey,
