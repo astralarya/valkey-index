@@ -1,10 +1,4 @@
-import {
-  createValkeyIndex,
-  getHash,
-  setHash,
-  updateHash,
-  type Exemplar,
-} from "../src";
+import { createValkeyIndex, getHash, setHash, updateHash } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
@@ -13,7 +7,7 @@ const hashIndex = createValkeyIndex(
   {
     valkey,
     name: "hash",
-    exemplar: 0 as Exemplar<TestObject>,
+    exemplar: 0 as TestObject | 0,
     relations: [],
     get: getHash(),
     set: setHash(),

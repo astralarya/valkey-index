@@ -11,12 +11,10 @@ export const VALKEY_INDEX_NAME_REGEX = /^[a-zA-Z0-9_\.\/]+$/;
 
 export type KeyPart = string | number | symbol;
 
-export type Exemplar<T> = T | 0;
-
 export type ValkeyIndexOptions<T, R extends keyof T> = {
   valkey: Redis;
   name: string;
-  exemplar: Exemplar<T>;
+  exemplar: T | 0;
   relations: R[];
   get?: ValkeyIndexGetter<T, R>;
   set?: ValkeyIndexSetter<T, R>;

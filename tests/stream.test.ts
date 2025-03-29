@@ -3,7 +3,6 @@ import {
   createValkeyIndex,
   rangeStream,
   readStream,
-  type Exemplar,
 } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
@@ -13,7 +12,7 @@ const streamIndex = createValkeyIndex(
   {
     valkey,
     name: "stream",
-    exemplar: 0 as Exemplar<TestObject>,
+    exemplar: 0 as TestObject | 0,
     relations: [],
   },
   {

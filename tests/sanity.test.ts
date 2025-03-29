@@ -1,4 +1,4 @@
-import { createValkeyIndex, type Exemplar } from "../src";
+import { createValkeyIndex } from "../src";
 import { useBeforeEach, valkey } from "./index.test";
 
 useBeforeEach();
@@ -22,7 +22,7 @@ test("Sanity checks", () => {
       createValkeyIndex({
         valkey,
         name: "good_name",
-        exemplar: 0 as Exemplar<Record<(typeof bad_names)[typeof idx], 0>>,
+        exemplar: 0 as Record<(typeof bad_names)[typeof idx], 0> | 0,
         relations: [bad_name],
       });
     }).toThrow(Error);
