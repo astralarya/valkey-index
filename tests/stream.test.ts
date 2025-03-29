@@ -22,7 +22,7 @@ const streamIndex = createValkeyIndex(
   },
 );
 
-test("Stream index", async () => {
+test("Stream", async () => {
   expect(await streamIndex.range({ pkey: "1" })).toEqual([]);
 
   setTimeout(async () => {
@@ -116,7 +116,7 @@ test("Stream index", async () => {
   });
 });
 
-test("Stream index abort", async () => {
+test("Stream abort", async () => {
   expect(await streamIndex.range({ pkey: "1" })).toEqual([]);
 
   const controller = new AbortController();

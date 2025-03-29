@@ -5,7 +5,7 @@ useBeforeEach();
 
 const bad_names = ["bad:name", "bad@name", "bad-name"] as const;
 
-test("Sanity checks", () => {
+test("Sanity", () => {
   bad_names.forEach((bad_name) => {
     expect(() => {
       createValkeyIndex({

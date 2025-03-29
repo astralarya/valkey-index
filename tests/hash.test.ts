@@ -26,7 +26,7 @@ const hashIndex = createValkeyIndex(
   },
 );
 
-test("Hash index", async () => {
+test("Hash", async () => {
   expect(await hashIndex.get("1")).toEqual({});
 
   await hashIndex.set({ pkey: "1", input: { foo: "ababa", bar: 0, baz: 1 } });

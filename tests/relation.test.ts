@@ -26,7 +26,7 @@ const relationIndex = createValkeyIndex(
   },
 );
 
-test("Relation index", async () => {
+test("Relations", async () => {
   expect(await relationIndex.get("1")).toEqual({});
 
   await relationIndex.set({
