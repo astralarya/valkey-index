@@ -1,7 +1,6 @@
 import SuperJSON from "superjson";
 
 import {
-  type KeyPart,
   type StreamItem,
   type ValkeyIndexGetter,
   type ValkeyIndexHandler,
