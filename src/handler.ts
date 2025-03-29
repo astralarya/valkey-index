@@ -183,14 +183,20 @@ export function readStream<T, R extends keyof T>({
 }: {
   convert?: ValueDeserializer<T>;
 } = {}): ValkeyIndexHandler<
-  { pkey: string; lastId?: string; signal?: AbortSignal },
+  {
+    pkey: string;
+    count?: number;
+    block?: number;
+    lastId?: string;
+    signal?: AbortSignal;
+  },
   T,
   R,
   AsyncGenerator<StreamItem<T | undefined>>
 > {
   return async function* read(
     ops,
-    { pkey, lastId, signal },
+    { pkey, count, block, lastId, signal },
     options,
   ): AsyncGenerator<StreamItem<T | undefined>> {
     const { valkey, toKey, touch, ttl = null, maxlen = null } = ops;
@@ -216,13 +222,14 @@ export function readStream<T, R extends keyof T>({
     try {
       while (!signal?.aborted) {
         // console.log("BLOCKING");
-        const results = await subscription.xread(
-          "BLOCK",
-          0,
+        const args = [
+          ...(count !== undefined ? ["COUNT", count] : []),
+          ...["BLOCK", block ?? 0],
           "STREAMS",
           key,
           lastSeen,
-        );
+        ] as unknown as Parameters<(typeof subscription)["xread"]>;
+        const results = await subscription.xread(...args);
         for (const [, items] of results ?? []) {
           for (const [id, fields] of items) {
             lastSeen = id;

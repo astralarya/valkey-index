@@ -97,4 +97,42 @@ test("Stream index", async () => {
   expect(next2_2).toMatchObject({
     data: { foo: "gagaga", bar: 2 },
   });
+
+  const readbegin = await streamIndex.read({
+    pkey: "1",
+    count: 10,
+    lastId: "0",
+  });
+
+  const nextbegin_1 = (await readbegin.next()).value;
+  expect(typeof nextbegin_1.id).toBe("string");
+  expect(nextbegin_1).toMatchObject({
+    data: { foo: "ababa", bar: 0 },
+  });
+
+  const nextbegin_2 = (await readbegin.next()).value;
+  expect(typeof nextbegin_2.id).toBe("string");
+  expect(nextbegin_2).toMatchObject({
+    data: { foo: "lalala", bar: 1 },
+  });
+});
+
+test("Stream index abort", async () => {
+  expect(await streamIndex.range({ pkey: "1" })).toEqual([]);
+
+  const controller = new AbortController();
+
+  const read1 = await streamIndex.read({
+    pkey: "1",
+    signal: controller.signal,
+  });
+
+  setTimeout(async () => {
+    controller.abort();
+  }, 10);
+
+  const error = console.error;
+  jest.spyOn(console, "error").mockImplementation(() => {});
+  expect(read1.next()).resolves.toMatchObject({ done: true });
+  jest.spyOn(console, "error").mockImplementation(error);
 });
