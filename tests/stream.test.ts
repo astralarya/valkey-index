@@ -24,5 +24,14 @@ const streamIndex = createValkeyIndex(
 );
 
 test("Stream index", async () => {
-  // expect(await streamIndex.get("1")).toEqual({});
+  expect(await streamIndex.range({ pkey: "1" })).toEqual([]);
+
+  await streamIndex.append({
+    pkey: "1",
+    input: { foo: "ababa", bar: 0 },
+  });
+
+  const x = await streamIndex.range({ pkey: "1" });
+  expect(typeof x[0]?.id).toBe("string");
+  expect(x).toMatchObject([{ data: { foo: "ababa", bar: 0 } }]);
 });
