@@ -63,7 +63,7 @@ export type ValkeyIndexOps<T, R extends string> = {
   ) => Promise<void>;
   update?: (
     arg: { pkey: string; input: Partial<T> },
-    options: ValkeyIndexHandlerOptions,
+    options?: ValkeyIndexHandlerOptions,
   ) => Promise<void>;
   touch: (
     pipeline: ChainableCommander,
