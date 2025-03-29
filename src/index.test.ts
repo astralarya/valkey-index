@@ -28,22 +28,22 @@ const hashIndex = createValkeyIndex(
     valkey,
     name: "hash",
     get: getHash<TestObject>(),
-    set: setHash<TestObject>(),
-    update: updateHash<TestObject>(),
+    set: setHash(),
+    update: updateHash(),
   },
-  // {
-  //   use: async ({ valkey, get }, pkey: string, op) => {
-  //     get(pkey);
-  //   },
-  // },
+  {
+    use: async ({ valkey, get }, pkey: string, op) => {
+      get!(pkey);
+    },
+  },
 );
 
 const relationIndex = createValkeyIndex({
   valkey,
   name: "relation",
-  related: relatedHash({ fields: ["bar"] }),
-  get: getHash<TestObject>(),
-  set: setHash<TestObject>(),
+  related: relatedHash<TestObject, "bar">({ fields: ["bar"] }),
+  get: getHash(),
+  set: setHash(),
 });
 
 test("Hash index", async () => {
@@ -63,6 +63,8 @@ test("Hash index", async () => {
 
   await hashIndex.update({ pkey: "1", input: { bar: undefined } });
   expect(await hashIndex.get("1")).toEqual({ foo: "lalala" });
+
+  await hashIndex.f.use("1");
 });
 
 test("Relation index", async () => {

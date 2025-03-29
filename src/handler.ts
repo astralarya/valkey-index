@@ -5,7 +5,6 @@ import {
   type StreamItem,
   type ValkeyIndexGetter,
   type ValkeyIndexHandler,
-  type ValkeyIndexOps,
   type ValkeyIndexSetter,
   type ValkeyIndexStreamHandler,
   type ValkeyIndexSubscriptionHandler,
@@ -48,7 +47,11 @@ export function assembleRecord(fields: string[]) {
   return r;
 }
 
-export function relatedHash<T, R extends keyof T>({ fields }: { fields: R[] }) {
+export function relatedHash<T, R extends string>({
+  fields,
+}: {
+  fields: readonly R[];
+}) {
   return function related(value: Partial<T>) {
     const results = Object.fromEntries(
       Object.entries(value)
@@ -64,22 +67,22 @@ export function relatedHash<T, R extends keyof T>({ fields }: { fields: R[] }) {
   };
 }
 
-export function getHash<T>({
+export function getHash<T, R extends string = "">({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
-} = {}): ValkeyIndexGetter<T, any> {
+} = {}): ValkeyIndexGetter<T, R> {
   return async function get({ valkey }, key) {
     const value = await valkey.hgetall(key);
     return convert(value);
   };
 }
 
-export function setHash<T>({
+export function setHash<T, R extends string = "">({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
-} = {}): ValkeyIndexSetter<T, any> {
+} = {}): ValkeyIndexSetter<T, R> {
   return async function set(_ops, pipeline, { key, input }) {
     if (input === undefined) {
       return;
@@ -93,11 +96,11 @@ export function setHash<T>({
   };
 }
 
-export function updateHash<T>({
+export function updateHash<T, R extends string = "">({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<Partial<T>>;
-} = {}): ValkeyIndexUpdater<T, any> {
+} = {}): ValkeyIndexUpdater<T, R> {
   return async function update(_ops, pipeline, { key, input }) {
     const value = convert(input);
     if (value === undefined) {
@@ -112,7 +115,7 @@ export function updateHash<T>({
   };
 }
 
-export function appendStream<T>({
+export function appendStream<T, R extends string = "">({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
@@ -123,7 +126,7 @@ export function appendStream<T>({
     id?: string;
   },
   T,
-  any
+  R
 > {
   return async function append(
     { valkey, toKey, touch, ttl = null, maxlen = null },
@@ -158,14 +161,14 @@ export function appendStream<T>({
   };
 }
 
-export function rangeStream<T>({
+export function rangeStream<T, R extends string = "">({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}): ValkeyIndexStreamHandler<
   { pkey: string; start?: string; stop?: string },
   T,
-  any
+  R
 > {
   return async function range(
     { valkey, toKey, touch, ttl = null, maxlen = null },
@@ -196,14 +199,14 @@ export function rangeStream<T>({
 
 // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
 // until then this leaks connections
-export function readStream<T>({
+export function readStream<T, R extends string = "">({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}): ValkeyIndexSubscriptionHandler<
   { pkey: string; lastId?: string; signal?: AbortSignal },
   T,
-  any
+  R
 > {
   return async function* read(
     ops,

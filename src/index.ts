@@ -9,9 +9,7 @@ export const DEFAULT_MAXLEN = 8;
 
 export type KeyPart = string | number | symbol;
 
-export type ValkeyIndex<T, R extends keyof T> = {};
-
-export type ValkeyIndexOptions<T, R extends keyof T> = {
+export type ValkeyIndexOptions<T, R extends string> = {
   valkey: Redis;
   // name/relation limited to alphanum, underscore, dot
   name: string;
@@ -25,36 +23,36 @@ export type ValkeyIndexOptions<T, R extends keyof T> = {
   maxlen?: number | null;
 };
 
-export type ValkeyIndexGetter<T, R extends keyof T> = (
+export type ValkeyIndexGetter<T, R extends string> = (
   ops: ValkeyIndexOps<T, R>,
   key: string,
 ) => Promise<T | undefined>;
 
-export type ValkeyIndexSetter<T, R extends keyof T> = (
+export type ValkeyIndexSetter<T, R extends string> = (
   ops: ValkeyIndexOps<T, R>,
   pipeline: ChainableCommander,
   arg: { key: string; input: T },
   options?: ValkeyIndexHandlerOptions,
-) => void;
+) => Promise<void> | void;
 
-export type ValkeyIndexUpdater<T, R extends keyof T> = (
+export type ValkeyIndexUpdater<T, R extends string> = (
   ops: ValkeyIndexOps<T, R>,
   pipeline: ChainableCommander,
   arg: { key: string; input: Partial<T> },
   options?: ValkeyIndexHandlerOptions,
-) => void;
+) => Promise<void> | void;
 
 export type ValkeyIndexHandlerOptions = {
   ttl?: Date | number;
   message?: string;
 };
 
-export type ValkeyIndexOps<T, R extends keyof T> = {
+export type ValkeyIndexOps<T, R extends string> = {
   valkey: Redis;
   ttl?: number | null;
   maxlen?: number | null;
-  toKey: (id: KeyPart, relation?: string) => string;
-  pkeysVia: (relation: string, fkey: KeyPart) => Promise<string[]>;
+  toKey: (id: KeyPart, relation?: R) => string;
+  pkeysVia: (relation: R, fkey: KeyPart) => Promise<string[]>;
   related: (
     value: Partial<T>,
   ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
@@ -82,40 +80,40 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
   }) => AsyncIterable<string>;
   subscribeVia: (x: {
     fkey: KeyPart;
-    relation: string;
+    relation: R;
     signal?: AbortSignal | undefined;
     test?: string | RegExp;
   }) => AsyncIterable<string>;
   del: (pkey: KeyPart) => Promise<void>;
-  delVia: (relation: string, fkey: KeyPart) => Promise<void>;
+  delVia: (relation: R, fkey: KeyPart) => Promise<void>;
 };
 
 export type ValkeyIndexCommand<A, T> = (
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
-export type ValkeyIndexHandler<A, T, R extends keyof T> = (
+export type ValkeyIndexHandler<A, T, R extends string> = (
   ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<void>;
-export type ValkeyIndexItemHandler<A, T, R extends keyof T> = (
+export type ValkeyIndexItemHandler<A, T, R extends string> = (
   ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<T>;
-export type ValkeyIndexStreamHandler<A, T, R extends keyof T> = (
+export type ValkeyIndexStreamHandler<A, T, R extends string> = (
   ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => Promise<StreamItem<T | undefined>[]>;
-export type ValkeyIndexSubscriptionHandler<A, T, R extends keyof T> = (
+export type ValkeyIndexSubscriptionHandler<A, T, R extends string> = (
   ops: ValkeyIndexOps<T, R>,
   arg: A,
   options?: ValkeyIndexHandlerOptions,
 ) => AsyncGenerator<StreamItem<T | undefined>>;
 
-export type ValkeyIndexSpec<T, R extends keyof T> = Record<
+export type ValkeyIndexSpec<T, R extends string> = Record<
   string,
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   | ValkeyIndexHandler<any, T, R>
@@ -129,13 +127,13 @@ export type ValkeyIndexSpec<T, R extends keyof T> = Record<
 
 export type ValkeyIndexFunction<
   T,
-  R extends keyof T,
+  R extends string,
   M extends ValkeyIndexSpec<T, R>,
   K extends keyof M,
 > = M[K] extends ValkeyIndexHandler<infer A, T, R>
   ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<void>
   : M[K] extends ValkeyIndexItemHandler<infer A, T, R>
-  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<T>
+  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<unknown>
   : M[K] extends ValkeyIndexStreamHandler<infer A, T, R>
   ? (
       arg: A,
@@ -150,7 +148,7 @@ export type ValkeyIndexFunction<
 
 export type ValkeyIndexInterface<
   T,
-  R extends keyof T,
+  R extends string,
   M extends ValkeyIndexSpec<T, R>,
 > = {
   [K in keyof M]: ValkeyIndexFunction<T, R, M, K>;
@@ -161,7 +159,7 @@ export type StreamItem<T> = {
   data: T;
 };
 
-export function calculateRm<R extends KeyPart>({
+export function calculateRm<R extends string>({
   curr,
   next,
 }: {
@@ -210,7 +208,7 @@ export function calculateRm<R extends KeyPart>({
 
 export function createValkeyIndex<
   T,
-  R extends keyof T,
+  R extends string,
   M extends ValkeyIndexSpec<T, R>,
 >(
   index: ValkeyIndexOptions<T, R>,
@@ -246,7 +244,7 @@ export function createValkeyIndex<
 
 export function createValkeyIndex<
   T,
-  R extends keyof T,
+  R extends string,
   M extends ValkeyIndexSpec<T, R>,
 >(
   {
@@ -259,17 +257,17 @@ export function createValkeyIndex<
     ttl = DEFAULT_TTL,
     maxlen = DEFAULT_MAXLEN,
   }: ValkeyIndexOptions<T, R>,
-  functions = {},
+  functions = {} as M,
 ) {
-  function toKey(id: KeyPart, relation?: string) {
+  function toKey(id: KeyPart, relation?: R) {
     if (relation) {
-      return `${name}/${relation}:${String(id)}`;
+      return `${name}/${String(relation)}:${String(id)}`;
     } else {
       return `${name}:${String(id)}`;
     }
   }
 
-  async function pkeysVia(relation: string, fkey: KeyPart) {
+  async function pkeysVia(relation: R, fkey: KeyPart) {
     const key = toKey(fkey, relation);
     return valkey.zrange(key, 0, "-1");
   }
@@ -296,7 +294,7 @@ export function createValkeyIndex<
     const next = related(input);
     const rm = calculateRm({ curr, next });
     const pipeline = valkey.multi();
-    const value = set_!(ops, pipeline, { key, input }, options);
+    const value = await set_!(ops, pipeline, { key, input }, options);
     await touch(pipeline, { pkey, value: input, rm }, options);
     await pipeline.exec();
     return value;
@@ -312,7 +310,7 @@ export function createValkeyIndex<
     const next = related(input);
     const rm = calculateRm({ curr, next });
     const pipeline = valkey.multi();
-    const value = update_!(ops, pipeline, { key, input }, options);
+    const value = await update_!(ops, pipeline, { key, input }, options);
     await touch(pipeline, { pkey, value: input, rm }, options);
     await pipeline.exec();
     return value;
@@ -320,7 +318,7 @@ export function createValkeyIndex<
 
   function touchRelated(
     pipeline: ChainableCommander,
-    relation: string,
+    relation: R,
     pkey: KeyPart,
     fkey: KeyPart,
     { ttl: ttl_in, message }: ValkeyIndexHandlerOptions,
@@ -374,7 +372,10 @@ export function createValkeyIndex<
       pipeline.publish(key, message);
     }
     if (rm) {
-      for (const [relation, fkey] of Object.entries(rm)) {
+      for (const [relation, fkey] of Object.entries(rm) as [
+        R,
+        KeyPart | KeyPart[] | undefined,
+      ][]) {
         if (Array.isArray(fkey)) {
           fkey.forEach((item) => {
             pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
@@ -386,7 +387,10 @@ export function createValkeyIndex<
     }
     if (relations) {
       if (!exists) {
-        for (const [relation, fkey] of Object.entries(relations)) {
+        for (const [relation, fkey] of Object.entries(relations) as [
+          R,
+          KeyPart | KeyPart[] | undefined,
+        ][]) {
           if (Array.isArray(fkey)) {
             fkey.forEach((item) => {
               pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
@@ -396,7 +400,10 @@ export function createValkeyIndex<
           }
         }
       } else {
-        for (const [relation, fkey] of Object.entries(relations)) {
+        for (const [relation, fkey] of Object.entries(relations) as [
+          R,
+          KeyPart | KeyPart[] | undefined,
+        ][]) {
           if (Array.isArray(fkey)) {
             fkey.forEach((item) => {
               touchRelated(pipeline, relation, pkey, item as KeyPart, {
@@ -458,14 +465,14 @@ export function createValkeyIndex<
     test,
   }: {
     fkey: KeyPart;
-    relation: string;
+    relation: R;
     signal?: AbortSignal;
     test?: string | RegExp;
   }) {
     if (signal?.aborted) {
       return;
     }
-    const key = toKey(fkey, String(relation));
+    const key = toKey(fkey, relation);
     const subscription = valkey.duplicate();
     await subscription.subscribe(key);
     for await (const [channel, message] of on(subscription, "message", {
@@ -491,7 +498,10 @@ export function createValkeyIndex<
     const relations = value && related ? related(value) : null;
     const pipeline = valkey.multi();
     if (relations) {
-      for (const [relation, fkey] of Object.entries(relations)) {
+      for (const [relation, fkey] of Object.entries(relations) as [
+        R,
+        KeyPart | KeyPart[] | undefined,
+      ][]) {
         if (Array.isArray(fkey)) {
           fkey.forEach((item) => {
             pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
@@ -505,7 +515,7 @@ export function createValkeyIndex<
     await pipeline.exec();
   }
 
-  async function delVia(relation: string, fkey: KeyPart) {
+  async function delVia(relation: R, fkey: KeyPart) {
     const key = toKey(fkey, relation);
     const pkeys = await valkey.zrange(key, 0, "-1");
     await valkey.del(key);
@@ -527,10 +537,10 @@ export function createValkeyIndex<
 
   const func = Object.entries(functions).reduce((prev, [key, val]) => {
     prev[key as keyof M] = (async (
-      args: Parameters<ValkeyIndexFunction<T, R, M, typeof key>>[1],
+      arg: Parameters<ValkeyIndexFunction<T, R, M, typeof key>>[1],
       options?: ValkeyIndexHandlerOptions,
     ) => {
-      return (val as M[typeof key])(ops, args, options);
+      return val(ops, arg, options);
     }) as ValkeyIndexFunction<T, R, M, typeof key>;
     return prev;
   }, {} as ValkeyIndexInterface<T, R, M>);
