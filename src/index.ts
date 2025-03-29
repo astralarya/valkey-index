@@ -7,8 +7,7 @@ export * from "./handler";
 export const DEFAULT_TTL = 60 * 60 * 24;
 export const DEFAULT_MAXLEN = 8;
 
-export const VALKEY_INDEX_NAME_REGEX = /^[a-zA-Z0-9_\.]+$/;
-export const VALKEY_INDEX_PARENT_NAME_REGEX = /^[a-zA-Z0-9_\.\/]+$/;
+export const VALKEY_INDEX_NAME_REGEX = /^[a-zA-Z0-9_\.\/]+$/;
 
 export type KeyPart = string | number | symbol;
 
@@ -16,7 +15,6 @@ export type Exemplar<T> = T | 0;
 
 export type ValkeyIndexOptions<T, R extends keyof T> = {
   valkey: Redis;
-  parent?: string;
   name: string;
   exemplar: Exemplar<T>;
   relations: R[];
@@ -222,8 +220,7 @@ export function createValkeyIndex<
 >(
   {
     valkey,
-    parent,
-    name: name_,
+    name,
     relations,
     get: get_,
     set: set_,
@@ -233,12 +230,7 @@ export function createValkeyIndex<
   }: ValkeyIndexOptions<T, R>,
   functions = {} as M,
 ) {
-  if (parent !== undefined && !VALKEY_INDEX_PARENT_NAME_REGEX.test(parent)) {
-    throw Error(
-      "valkey-index: parent name may only contain forward slash, alphanumeric, underscore, and dots",
-    );
-  }
-  if (!VALKEY_INDEX_NAME_REGEX.test(name_)) {
+  if (!VALKEY_INDEX_NAME_REGEX.test(name)) {
     throw Error(
       "valkey-index: name may only contain alphanumeric, underscore, and dots",
     );
@@ -248,8 +240,6 @@ export function createValkeyIndex<
       "valkey-index: related names may only contain alphanumeric, underscore, and dots",
     );
   }
-
-  const name = `${parent ? `${parent}/` : ""}${name_}`;
 
   function toKey(id: KeyPart, relation?: R) {
     if (relation) {
