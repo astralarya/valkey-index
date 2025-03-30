@@ -1,4 +1,10 @@
-import { createValkeyIndex, getHash, setHash, updateHash } from "../src";
+import {
+  createValkeyIndex,
+  getHash,
+  setHash,
+  updateHash,
+  type KeyPart,
+} from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
@@ -14,8 +20,8 @@ const relationIndex = createValkeyIndex(
     update: updateHash(),
   },
   {
-    use: async ({ get, update }, pkey: string) => {
-      const val = await get!(pkey);
+    use: async ({ get, update }, { pkey }: { pkey: KeyPart }) => {
+      const val = await get!({ pkey });
       if (val?.baz === undefined) {
         return;
       }
@@ -27,13 +33,13 @@ const relationIndex = createValkeyIndex(
 );
 
 test("Relations", async () => {
-  expect(await relationIndex.get("1")).toEqual({});
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({});
 
   await relationIndex.set({
-    pkey: "1",
+    pkey: 1,
     input: { foo: "ababa", bar: 0, baz: 2 },
   });
-  expect(await relationIndex.get("1")).toEqual({
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({
     foo: "ababa",
     bar: 0,
     baz: 2,
@@ -43,18 +49,21 @@ test("Relations", async () => {
   expect(await relationIndex.pkeysVia("baz", 4)).toEqual([]);
   expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
 
-  await relationIndex.set({ pkey: "1", input: { foo: "lalala", bar: 0 } });
-  expect(await relationIndex.get("1")).toEqual({ foo: "lalala", bar: 0 });
+  await relationIndex.set({ pkey: 1, input: { foo: "lalala", bar: 0 } });
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({
+    foo: "lalala",
+    bar: 0,
+  });
   expect(await relationIndex.pkeysVia("bar", 0)).toEqual(["1"]);
   expect(await relationIndex.pkeysVia("baz", 2)).toEqual([]);
   expect(await relationIndex.pkeysVia("baz", 4)).toEqual([]);
   expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
 
   await relationIndex.set({
-    pkey: "1",
+    pkey: 1,
     input: { foo: "ababa", bar: 0, baz: 2 },
   });
-  expect(await relationIndex.get("1")).toEqual({
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({
     foo: "ababa",
     bar: 0,
     baz: 2,
@@ -65,10 +74,10 @@ test("Relations", async () => {
   expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
 
   await relationIndex.set({
-    pkey: "1",
+    pkey: 1,
     input: { foo: "lalala", bar: 0, baz: 4 },
   });
-  expect(await relationIndex.get("1")).toEqual({
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({
     foo: "lalala",
     bar: 0,
     baz: 4,
@@ -78,8 +87,8 @@ test("Relations", async () => {
   expect(await relationIndex.pkeysVia("baz", 4)).toEqual(["1"]);
   expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
 
-  expect(await relationIndex.f.use("1")).toEqual(5);
-  expect(await relationIndex.get("1")).toEqual({
+  expect(await relationIndex.f.use({ pkey: 1 })).toEqual(5);
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({
     foo: "lalala",
     bar: 0,
     baz: 5,

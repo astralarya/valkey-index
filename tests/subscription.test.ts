@@ -16,7 +16,7 @@ const subscriptionIndex = createValkeyIndex(
   },
   {
     use: async ({ get, update }, pkey: string) => {
-      const val = await get!(pkey);
+      const val = await get!({ pkey });
       if (val?.baz === undefined) {
         return;
       }
@@ -28,7 +28,7 @@ const subscriptionIndex = createValkeyIndex(
 );
 
 test("Subscription", async () => {
-  expect(await subscriptionIndex.get("1")).toEqual({});
+  expect(await subscriptionIndex.get({ pkey: 1 })).toEqual({});
 
   const subscribe1 = subscriptionIndex.subscribe({ pkey: 1 });
   const subscribe2 = subscriptionIndex.subscribeVia({
@@ -45,13 +45,11 @@ test("Subscription", async () => {
   const next3_1 = subscribe3_1.next();
 
   setTimeout(async () => {
-    await subscriptionIndex.set(
-      {
-        pkey: "1",
-        input: { foo: "ababa", bar: 2 },
-      },
-      { message: "hello" },
-    );
+    await subscriptionIndex.set({
+      pkey: 1,
+      input: { foo: "ababa", bar: 2 },
+      message: "hello",
+    });
   }, 10);
 
   expect(
@@ -81,13 +79,11 @@ test("Subscription", async () => {
   const next3_2 = subscribe3_2.next();
 
   setTimeout(async () => {
-    await subscriptionIndex.set(
-      {
-        pkey: "1",
-        input: { foo: "gagaga", bar: 2 },
-      },
-      { message: "world" },
-    );
+    await subscriptionIndex.set({
+      pkey: 1,
+      input: { foo: "gagaga", bar: 2 },
+      message: "world",
+    });
   }, 10);
 
   expect(
@@ -117,13 +113,11 @@ test("Subscription", async () => {
   const next3_3 = subscribe3_3.next();
 
   setTimeout(async () => {
-    await subscriptionIndex.update(
-      {
-        pkey: "1",
-        input: { bar: 3 },
-      },
-      { message: "good" },
-    );
+    await subscriptionIndex.update({
+      pkey: 1,
+      input: { bar: 3 },
+      message: "good",
+    });
   }, 10);
 
   expect(

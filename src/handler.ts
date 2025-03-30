@@ -1,10 +1,12 @@
 import SuperJSON from "superjson";
 
 import {
+  type KeyPart,
   type StreamItem,
   type ValkeyIndexGetter,
   type ValkeyIndexHandler,
   type ValkeyIndexSetter,
+  type ValkeyIndexToucherOptions,
   type ValkeyIndexUpdater,
 } from ".";
 
@@ -49,7 +51,7 @@ export function getHash<T, R extends keyof T>({
 }: {
   convert?: ValueDeserializer<T>;
 } = {}): ValkeyIndexGetter<T, R> {
-  return async function get({ valkey }, key) {
+  return async function get({ valkey }, { key }) {
     const value = await valkey.hgetall(key);
     return convert(value);
   };
@@ -98,18 +100,17 @@ export function appendStream<T, R extends keyof T>({
   convert?: ValueSerializer<T>;
 } = {}): ValkeyIndexHandler<
   {
-    pkey: string;
+    pkey: KeyPart;
     input: T | undefined;
     id?: string;
-  },
+  } & ValkeyIndexToucherOptions,
   T,
   R,
   void
 > {
   return async function append(
     { valkey, toKey, touch, ttl = null, maxlen = null },
-    { pkey, input, id },
-    options,
+    { pkey, input, id, ttl: ttl_, message },
   ) {
     const key = toKey(pkey);
     const value = input && convert(input);
@@ -134,7 +135,7 @@ export function appendStream<T, R extends keyof T>({
         ),
       ).flat(),
     );
-    await touch(pipeline, { pkey, value: input }, options);
+    await touch(pipeline, { pkey, value: input, ttl: ttl_, message });
     await pipeline.exec();
   };
 }
@@ -144,15 +145,14 @@ export function rangeStream<T, R extends keyof T>({
 }: {
   convert?: ValueDeserializer<T>;
 } = {}): ValkeyIndexHandler<
-  { pkey: string; start?: string; stop?: string },
+  { pkey: KeyPart; start?: string; stop?: string } & ValkeyIndexToucherOptions,
   T,
   R,
   Promise<StreamItem<T | undefined>[]>
 > {
   return async function range(
     { valkey, toKey, touch, ttl = null, maxlen = null },
-    { pkey, start, stop },
-    options,
+    { pkey, start, stop, ttl: ttl_, message },
   ) {
     const key = toKey(pkey);
     const pipeline = valkey.multi();
@@ -164,7 +164,7 @@ export function rangeStream<T, R extends keyof T>({
       pipeline.xtrim(key, "MAXLEN", "~", maxlen);
     }
     pipeline.xrange(key, start ?? "-", stop ?? "+");
-    await touch(pipeline, { pkey }, options);
+    await touch(pipeline, { pkey, ttl: ttl_, message });
     const results = await pipeline.exec();
     const result = results?.[0]?.[1] as [string, string[]][];
     return result.map(([id, fields]) => {
@@ -184,20 +184,19 @@ export function readStream<T, R extends keyof T>({
   convert?: ValueDeserializer<T>;
 } = {}): ValkeyIndexHandler<
   {
-    pkey: string;
+    pkey: KeyPart;
     count?: number;
     block?: number;
     lastId?: string;
     signal?: AbortSignal;
-  },
+  } & ValkeyIndexToucherOptions,
   T,
   R,
   AsyncGenerator<StreamItem<T | undefined>>
 > {
   return async function* read(
     ops,
-    { pkey, count, block, lastId, signal },
-    options,
+    { pkey, count, block, lastId, signal, ttl: ttl_, message },
   ): AsyncGenerator<StreamItem<T | undefined>> {
     const { valkey, toKey, touch, ttl = null, maxlen = null } = ops;
     const key = toKey(pkey);
@@ -209,7 +208,7 @@ export function readStream<T, R extends keyof T>({
     if (maxlen !== null) {
       pipeline.xtrim(key, "MAXLEN", "~", maxlen);
     }
-    await touch(pipeline, { pkey }, options);
+    await touch(pipeline, { pkey, ttl: ttl_, message });
     await pipeline.exec();
     const subscription = valkey.duplicate();
     // console.log("signal", signal);

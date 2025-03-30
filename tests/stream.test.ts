@@ -23,16 +23,16 @@ const streamIndex = createValkeyIndex(
 );
 
 test("Stream", async () => {
-  expect(await streamIndex.range({ pkey: "1" })).toEqual([]);
+  expect(await streamIndex.range({ pkey: 1 })).toEqual([]);
 
   setTimeout(async () => {
     await streamIndex.append({
-      pkey: "1",
+      pkey: 1,
       input: { foo: "ababa", bar: 0 },
     });
   }, 10);
 
-  const read1 = await streamIndex.read({ pkey: "1" });
+  const read1 = await streamIndex.read({ pkey: 1 });
 
   const next1_1 = (await read1.next()).value;
   expect(typeof next1_1.id).toBe("string");
@@ -40,13 +40,13 @@ test("Stream", async () => {
     data: { foo: "ababa", bar: 0 },
   });
 
-  const range1 = await streamIndex.range({ pkey: "1" });
+  const range1 = await streamIndex.range({ pkey: 1 });
   expect(typeof range1[0]?.id).toBe("string");
   expect(range1).toMatchObject([{ data: { foo: "ababa", bar: 0 } }]);
 
   setTimeout(async () => {
     await streamIndex.append({
-      pkey: "1",
+      pkey: 1,
       input: { foo: "lalala", bar: 1 },
     });
   }, 10);
@@ -57,7 +57,7 @@ test("Stream", async () => {
     data: { foo: "lalala", bar: 1 },
   });
 
-  const range2 = await streamIndex.range({ pkey: "1" });
+  const range2 = await streamIndex.range({ pkey: 1 });
   expect(typeof range2[0]?.id).toBe("string");
   expect(range2).toMatchObject([
     { data: { foo: "ababa", bar: 0 } },
@@ -65,13 +65,13 @@ test("Stream", async () => {
   ]);
 
   const continue1 = await streamIndex.range({
-    pkey: "1",
+    pkey: 1,
     start: range2[range2.length - 1]?.id,
   });
   expect(typeof continue1[0]?.id).toBe("string");
   expect(continue1).toMatchObject([{ data: { foo: "lalala", bar: 1 } }]);
 
-  const read2 = await streamIndex.read({ pkey: "1", lastId: next1_1.id });
+  const read2 = await streamIndex.read({ pkey: 1, lastId: next1_1.id });
   const next2_1 = (await read2.next()).value;
   expect(typeof next2_1.id).toBe("string");
   expect(next2_1).toMatchObject({
@@ -80,7 +80,7 @@ test("Stream", async () => {
 
   setTimeout(async () => {
     await streamIndex.append({
-      pkey: "1",
+      pkey: 1,
       input: { foo: "gagaga", bar: 2 },
     });
   }, 10);
@@ -98,7 +98,7 @@ test("Stream", async () => {
   });
 
   const readbegin = await streamIndex.read({
-    pkey: "1",
+    pkey: 1,
     count: 10,
     lastId: "0",
   });
@@ -117,12 +117,12 @@ test("Stream", async () => {
 });
 
 test("Stream abort", async () => {
-  expect(await streamIndex.range({ pkey: "1" })).toEqual([]);
+  expect(await streamIndex.range({ pkey: 1 })).toEqual([]);
 
   const controller = new AbortController();
 
   const read1 = await streamIndex.read({
-    pkey: "1",
+    pkey: 1,
     signal: controller.signal,
   });
 

@@ -23,29 +23,27 @@ export type ValkeyIndexOptions<T, R extends keyof T> = {
   maxlen?: number | null;
 };
 
+export type ValkeyIndexToucherOptions = {
+  ttl?: Date | number;
+  message?: string;
+};
+
 export type ValkeyIndexGetter<T, R extends keyof T> = (
   ops: ValkeyIndexOps<T, R>,
-  key: string,
+  arg: { key: string } & ValkeyIndexToucherOptions,
 ) => Promise<T | undefined>;
 
 export type ValkeyIndexSetter<T, R extends keyof T> = (
   ops: ValkeyIndexOps<T, R>,
   pipeline: ChainableCommander,
-  arg: { key: string; input: T },
-  options?: ValkeyIndexHandlerOptions,
+  arg: { key: string; input: T } & ValkeyIndexToucherOptions,
 ) => Promise<void> | void;
 
 export type ValkeyIndexUpdater<T, R extends keyof T> = (
   ops: ValkeyIndexOps<T, R>,
   pipeline: ChainableCommander,
-  arg: { key: string; input: Partial<T> },
-  options?: ValkeyIndexHandlerOptions,
+  arg: { key: string; input: Partial<T> } & ValkeyIndexToucherOptions,
 ) => Promise<void> | void;
-
-export type ValkeyIndexHandlerOptions = {
-  ttl?: Date | number;
-  message?: string;
-};
 
 export type ValkeyIndexOps<T, R extends keyof T> = {
   valkey: Redis;
@@ -58,22 +56,21 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
   related: (
     value: Partial<T>,
   ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
-  get?: (pkey: string) => Promise<T | undefined>;
+  get?: (
+    arg: { pkey: KeyPart } & ValkeyIndexToucherOptions,
+  ) => Promise<T | undefined>;
   set?: (
-    arg: { pkey: string; input: T },
-    options: ValkeyIndexHandlerOptions,
+    arg: { pkey: KeyPart; input: T } & ValkeyIndexToucherOptions,
   ) => Promise<void>;
   update?: (
-    arg: { pkey: string; input: Partial<T> },
-    options?: ValkeyIndexHandlerOptions,
+    arg: { pkey: KeyPart; input: Partial<T> } & ValkeyIndexToucherOptions,
   ) => Promise<void>;
   touch: (
     pipeline: ChainableCommander,
     arg: {
       pkey: KeyPart;
       value?: Partial<T>;
-    },
-    options?: ValkeyIndexHandlerOptions,
+    } & ValkeyIndexToucherOptions,
   ) => Promise<void>;
   subscribe: (x: {
     pkey: KeyPart;
@@ -90,14 +87,10 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
   delVia: (relation: R, fkey: KeyPart) => Promise<void>;
 };
 
-export type ValkeyIndexCommand<A, T> = (
-  arg: A,
-  options?: ValkeyIndexHandlerOptions,
-) => Promise<T>;
+export type ValkeyIndexCommand<A, T> = (arg: A) => Promise<T>;
 export type ValkeyIndexHandler<A, T, R extends keyof T, V> = (
   ops: ValkeyIndexOps<T, R>,
   arg: A,
-  options?: ValkeyIndexHandlerOptions,
 ) => V;
 
 export type ValkeyIndexSpec<T, R extends keyof T> = Record<
@@ -112,7 +105,7 @@ export type ValkeyIndexFunction<
   M extends ValkeyIndexSpec<T, R>,
   K extends keyof M,
 > = M[K] extends ValkeyIndexHandler<infer A, T, R, infer V>
-  ? (arg: A, options?: ValkeyIndexHandlerOptions) => Promise<V>
+  ? (arg: A) => Promise<V>
   : never;
 
 export type ValkeyIndexInterface<
@@ -185,18 +178,18 @@ export function createValkeyIndex<
 ): Omit<ValkeyIndexOps<T, R>, "get" | "set" | "update"> & {
   get: (typeof index)["get"] extends undefined
     ? undefined
-    : (pkey: string) => Promise<T | undefined>;
+    : (
+        arg: { pkey: KeyPart } & ValkeyIndexToucherOptions,
+      ) => Promise<T | undefined>;
   set: (typeof index)["set"] extends undefined
     ? undefined
     : (
-        arg: { pkey: string; input: T },
-        options?: ValkeyIndexHandlerOptions,
+        arg: { pkey: KeyPart; input: T } & ValkeyIndexToucherOptions,
       ) => Promise<void>;
   update: (typeof index)["update"] extends undefined
     ? undefined
     : (
-        arg: { pkey: string; input: Partial<T> },
-        options?: ValkeyIndexHandlerOptions,
+        arg: { pkey: KeyPart; input: Partial<T> } & ValkeyIndexToucherOptions,
       ) => Promise<void>;
   func: ValkeyIndexInterface<T, R, M>;
   f: ValkeyIndexInterface<T, R, M>;
@@ -266,22 +259,28 @@ export function createValkeyIndex<
     return valkey.zrange(key, 0, "-1");
   }
 
-  async function get(pkey: KeyPart, options?: ValkeyIndexHandlerOptions) {
+  async function get({
+    pkey,
+    ttl: ttl_,
+    message,
+  }: { pkey: KeyPart } & ValkeyIndexToucherOptions) {
     if (!get_) {
       throw Error("valkey-index: get() invoked without being defined");
     }
     const key = toKey(pkey);
-    const value = await get_(ops, key);
+    const value = await get_(ops, { key });
     const pipeline = valkey.multi();
-    await touch(pipeline, { pkey, value }, options);
+    await touch(pipeline, { pkey, value, ttl: ttl_, message });
     await pipeline.exec();
     return value;
   }
 
-  async function set(
-    { pkey, input }: { pkey: KeyPart; input: T },
-    options?: ValkeyIndexHandlerOptions,
-  ) {
+  async function set({
+    pkey,
+    input,
+    ttl: ttl_,
+    message,
+  }: { pkey: KeyPart; input: T } & ValkeyIndexToucherOptions) {
     if (!get_) {
       throw Error("valkey-index: set() invoked without get() being defined");
     }
@@ -289,21 +288,23 @@ export function createValkeyIndex<
       throw Error("valkey-index: set() invoked without being defined");
     }
     const key = toKey(pkey);
-    const curr_value = await get_(ops, key);
+    const curr_value = await get_(ops, { key });
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
     const rm = calculateRm<T, R>({ curr, next });
     const pipeline = valkey.multi();
-    const value = await set_(ops, pipeline, { key, input }, options);
-    await touch(pipeline, { pkey, value: input, rm }, options);
+    const value = await set_(ops, pipeline, { key, input, ttl: ttl_, message });
+    await touch(pipeline, { pkey, value: input, rm, ttl: ttl_, message });
     await pipeline.exec();
     return value;
   }
 
-  async function update(
-    { pkey, input }: { pkey: KeyPart; input: Partial<T> },
-    options?: ValkeyIndexHandlerOptions,
-  ) {
+  async function update({
+    pkey,
+    input,
+    ttl: ttl_,
+    message,
+  }: { pkey: KeyPart; input: Partial<T> } & ValkeyIndexToucherOptions) {
     if (!get_) {
       throw Error("valkey-index: update() invoked without get() being defined");
     }
@@ -311,23 +312,35 @@ export function createValkeyIndex<
       throw Error("valkey-index: update() invoked without being defined");
     }
     const key = toKey(pkey);
-    const curr_value = await get_!(ops, key);
+    const curr_value = await get_(ops, { key, ttl: ttl_, message });
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
     const rm = calculateRm<T, R>({ curr, next });
     const pipeline = valkey.multi();
-    const value = await update_!(ops, pipeline, { key, input }, options);
-    await touch(pipeline, { pkey, value: input, rm }, options);
+    const value = await update_!(ops, pipeline, {
+      key,
+      input,
+      ttl: ttl_,
+      message,
+    });
+    await touch(pipeline, { pkey, value: input, rm, ttl: ttl_, message });
     await pipeline.exec();
     return value;
   }
 
   function touchRelated(
     pipeline: ChainableCommander,
-    relation: R,
-    pkey: KeyPart,
-    fkey: KeyPart,
-    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions,
+    {
+      pkey,
+      fkey,
+      relation,
+      ttl: ttl_in,
+      message,
+    }: {
+      relation: R;
+      pkey: KeyPart;
+      fkey: KeyPart;
+    } & ValkeyIndexToucherOptions,
   ) {
     const key = toKey(fkey, relation);
     if (ttl_in instanceof Date) {
@@ -357,20 +370,21 @@ export function createValkeyIndex<
       pkey,
       value,
       rm,
+      ttl: ttl_,
+      message,
     }: {
       pkey: KeyPart;
       value?: Partial<T>;
       rm?: Record<R, KeyPart[] | KeyPart | undefined>;
-    },
-    { ttl: ttl_in, message }: ValkeyIndexHandlerOptions = {},
+    } & ValkeyIndexToucherOptions,
   ) {
     const key = toKey(pkey);
-    const exists = (await valkey.exists(key)) !== 0;
+    // const exists = (await valkey.exists(key)) !== 0;
     const relations = value && related ? related(value) : undefined;
-    if (ttl_in instanceof Date) {
-      pipeline.expireat(key, ttl_in.valueOf());
-    } else if (typeof ttl_in === "number") {
-      pipeline.expire(key, ttl_in);
+    if (ttl_ instanceof Date) {
+      pipeline.expireat(key, ttl_.valueOf());
+    } else if (typeof ttl_ === "number") {
+      pipeline.expire(key, ttl_);
     } else if (ttl) {
       pipeline.expire(key, ttl);
     }
@@ -392,34 +406,26 @@ export function createValkeyIndex<
       }
     }
     if (relations) {
-      // if (!exists) {
-      //   for (const [relation, fkey] of Object.entries(relations) as [
-      //     R,
-      //     KeyPart | KeyPart[] | undefined,
-      //   ][]) {
-      //     if (Array.isArray(fkey)) {
-      //       fkey.forEach((item) => {
-      //         pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
-      //       });
-      //     } else if (fkey !== undefined) {
-      //       pipeline.zrem(toKey(fkey as KeyPart, relation), String(pkey));
-      //     }
-      //   }
-      // } else {
       for (const [relation, fkey] of Object.entries(relations) as [
         R,
         KeyPart | KeyPart[] | undefined,
       ][]) {
         if (Array.isArray(fkey)) {
           fkey.forEach((item) => {
-            touchRelated(pipeline, relation, pkey, item as KeyPart, {
-              ttl: ttl_in,
+            touchRelated(pipeline, {
+              relation,
+              pkey,
+              fkey: item,
+              ttl: ttl_,
               message,
             });
           });
         } else if (fkey !== undefined) {
-          touchRelated(pipeline, relation, pkey, fkey as KeyPart, {
-            ttl: ttl_in,
+          touchRelated(pipeline, {
+            relation,
+            pkey,
+            fkey,
+            ttl: ttl_,
             message,
           });
         }
@@ -499,7 +505,7 @@ export function createValkeyIndex<
 
   async function del(pkey: KeyPart) {
     const key = toKey(pkey);
-    const value = get ? await get(key) : undefined;
+    const value = get ? await get({ pkey }) : undefined;
     const relations = value && related ? related(value) : null;
     const pipeline = valkey.multi();
     if (relations) {
@@ -545,9 +551,8 @@ export function createValkeyIndex<
   const func = Object.entries(functions).reduce((prev, [key, val]) => {
     prev[key as keyof M] = ((
       arg: Parameters<ValkeyIndexFunction<T, R, M, typeof key>>[1],
-      options?: ValkeyIndexHandlerOptions,
     ) => {
-      return val(ops, arg, options);
+      return val(ops, arg);
     }) as ValkeyIndexFunction<T, R, M, typeof key>;
     return prev;
   }, {} as ValkeyIndexInterface<T, R, M>);
