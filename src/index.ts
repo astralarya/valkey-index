@@ -95,8 +95,7 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
       test?: string | RegExp;
     },
   ) => AsyncGenerator<string>;
-  del: (arg: { pkey: KeyPart }) => Promise<void>;
-  delVia: (arg: { fkey: KeyPart; relation: R }) => Promise<void>;
+  del: (arg: ValkeyIndexRef<T, R>) => Promise<void>;
 };
 
 export type ValkeyIndexCommand<A, T> = (arg: A) => Promise<T>;
@@ -543,7 +542,7 @@ export function createValkeyIndex<
     );
   }
 
-  async function del({ pkey }: { pkey: KeyPart }) {
+  async function del_pkey({ pkey }: { pkey: KeyPart }) {
     const key = toKey(pkey);
     const value = get_pkey ? await get_pkey({ pkey }) : undefined;
     const relations = value && related ? related(value) : null;
@@ -566,11 +565,15 @@ export function createValkeyIndex<
     await pipeline.exec();
   }
 
-  async function delVia({ fkey, relation }: { fkey: KeyPart; relation: R }) {
-    const key = toKey(fkey, relation);
-    const pkeys = await valkey.zrange(key, 0, "-1");
-    await valkey.del(key);
-    await Promise.all(pkeys.map((pkey) => del({ pkey })));
+  async function del(arg: ValkeyIndexRef<T, R>) {
+    if ("pkey" in arg) {
+      return del_pkey(arg);
+    } else if ("fkey" in arg && "relation" in arg) {
+      const key = toKey(arg.fkey, arg.relation);
+      const pkeys = await valkey.zrange(key, 0, "-1");
+      await valkey.del(key);
+      await Promise.all(pkeys.map((pkey) => del_pkey({ pkey })));
+    }
   }
 
   const ops: ValkeyIndexOps<T, R> = {
@@ -584,7 +587,6 @@ export function createValkeyIndex<
     touch,
     subscribe,
     del,
-    delVia,
   };
 
   const func = Object.entries(functions).reduce((prev, [key, val]) => {
