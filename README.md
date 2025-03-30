@@ -26,7 +26,7 @@ const valkey = new Valkey();
 
 type Session = {
   id: string,
-  expires: Date,
+  expires?: Date,
   user_id: string,
 }
 
@@ -43,13 +43,10 @@ const sessionIndex = createValkeyIndex(
 );
 
 // Add a session (strongly typed!)
-const tomorrow = new Date();
-tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 await sessionIndex.set({
   pkey: 1,
   input: {
     id: 1,
-    expires: tomorrow,
     user_id: 99,
   }
 });
