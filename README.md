@@ -82,5 +82,13 @@ Keys are joined to indexes with the `:` symbol:
 
 ## Developing
 
+Dependencies:
+* podman
+* bun
+
 You can run a local Valkey instance with the `./start-valkey.sh` script.
 Set the `VKPORT` environment variable to change the port (default 6379).
+
+When running tests, use `bun run test`, rather than the short form.
+Alternatively, execute `./run-tests.sh` directly.
+Otherwise, the test Valkey instance will not start for the tests.
