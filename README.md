@@ -63,7 +63,7 @@ const user_session_subscription = sessionIndex.subscribe({ fkey: 99, relation: "
 
 ## Usage
 
-Index and relation names may use alphanumerics, underscore, dots, and forward slash (`[a-zA-Z0-9_\.\/]`).
+Index and relation names may use alphanumerics, underscore, dots, and forward slash (`[a-zA-Z0-9_./]`).
 For example, these are all valid names:
 * `auth.users`
 * `auth.users/chats`

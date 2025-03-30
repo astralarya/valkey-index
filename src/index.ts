@@ -7,7 +7,7 @@ export * from "./handler";
 export const DEFAULT_TTL = 60 * 60 * 24;
 export const DEFAULT_MAXLEN = 8;
 
-export const VALKEY_INDEX_NAME_REGEX = /^[a-zA-Z0-9_\.\/]+$/;
+export const VALKEY_INDEX_NAME_REGEX = /^[a-zA-Z0-9_./]+$/;
 
 export type KeyPart = string | number | symbol;
 
