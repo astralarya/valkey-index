@@ -83,8 +83,8 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
     signal?: AbortSignal | undefined;
     test?: string | RegExp;
   }) => AsyncGenerator<string>;
-  del: (pkey: KeyPart) => Promise<void>;
-  delVia: (relation: R, fkey: KeyPart) => Promise<void>;
+  del: (arg: { pkey: KeyPart }) => Promise<void>;
+  delVia: (arg: { fkey: KeyPart; relation: R }) => Promise<void>;
 };
 
 export type ValkeyIndexCommand<A, T> = (arg: A) => Promise<T>;
@@ -503,7 +503,7 @@ export function createValkeyIndex<
     }
   }
 
-  async function del(pkey: KeyPart) {
+  async function del({ pkey }: { pkey: KeyPart }) {
     const key = toKey(pkey);
     const value = get ? await get({ pkey }) : undefined;
     const relations = value && related ? related(value) : null;
@@ -526,11 +526,11 @@ export function createValkeyIndex<
     await pipeline.exec();
   }
 
-  async function delVia(relation: R, fkey: KeyPart) {
+  async function delVia({ fkey, relation }: { fkey: KeyPart; relation: R }) {
     const key = toKey(fkey, relation);
     const pkeys = await valkey.zrange(key, 0, "-1");
     await valkey.del(key);
-    await Promise.all(pkeys.map((pkey) => del(pkey)));
+    await Promise.all(pkeys.map((pkey) => del({ pkey })));
   }
 
   const ops: ValkeyIndexOps<T, R> = {
