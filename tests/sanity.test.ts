@@ -3,7 +3,16 @@ import { useBeforeEach, valkey } from "./index.test";
 
 useBeforeEach();
 
-const bad_names = ["bad:name", "bad@name", "bad-name"] as const;
+const good_names = ["good_name", "good.name", "good/name"] as const;
+const bad_names = [
+  "bad:name",
+  "bad@name",
+  "bad-name",
+  "bad?name",
+  "bad&name",
+  "bad=name",
+  "bad\\name",
+] as const;
 
 test("Sanity", () => {
   bad_names.forEach((bad_name) => {
@@ -22,117 +31,40 @@ test("Sanity", () => {
       createValkeyIndex({
         valkey,
         name: "good_name",
-        exemplar: 0 as Record<(typeof bad_names)[typeof idx], 0> | 0,
+        exemplar: { [bad_name]: 0 },
         relations: [bad_name],
       });
     }).toThrow(Error);
   });
 
-  expect(() => {
-    createValkeyIndex({
-      name: "good_name",
-      valkey,
-      exemplar: undefined,
-      relations: [],
+  good_names.forEach((good_name) => {
+    expect(() => {
+      createValkeyIndex({
+        name: good_name,
+        valkey,
+        exemplar: undefined,
+        relations: [],
+      });
+    }).not.toThrow(Error);
+    good_names.forEach((good_relation) => {
+      expect(() => {
+        createValkeyIndex({
+          name: good_name,
+          valkey,
+          exemplar: { [good_relation]: 0 },
+          relations: [good_relation],
+        });
+      }).not.toThrow(Error);
+      good_names.forEach((good_relation2) => {
+        expect(() => {
+          createValkeyIndex({
+            name: good_name,
+            valkey,
+            exemplar: { [good_relation]: 0, [good_relation2]: 0 },
+            relations: [good_relation, good_relation2],
+          });
+        }).not.toThrow(Error);
+      });
     });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good_name.property",
-      valkey,
-      exemplar: undefined,
-      relations: [],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good_name",
-      valkey,
-      exemplar: { foo: 0 },
-      relations: ["foo"],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good_name",
-      valkey,
-      exemplar: { foo: 0, bar: 0 },
-      relations: ["foo", "bar"],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good_name.property",
-      valkey,
-      exemplar: { foo: 0 },
-      relations: ["foo"],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good_name.property",
-      valkey,
-      exemplar: { foo: 0, bar: 0 },
-      relations: ["foo", "bar"],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good/name",
-      valkey,
-      exemplar: undefined,
-      relations: [],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good/name.property",
-      valkey,
-      exemplar: undefined,
-      relations: [],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good/name",
-      valkey,
-      exemplar: { foo: 0 },
-      relations: ["foo"],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good/name",
-      valkey,
-      exemplar: { foo: 0, bar: 0 },
-      relations: ["foo", "bar"],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good/name",
-      valkey,
-      exemplar: undefined,
-      relations: [],
-    });
-  }).not.toThrow(Error);
-
-  expect(() => {
-    createValkeyIndex({
-      name: "good/name.property",
-      valkey,
-      exemplar: undefined,
-      relations: [],
-    });
-  }).not.toThrow(Error);
+  });
 });

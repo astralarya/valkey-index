@@ -56,6 +56,17 @@ const session = await sessionIndex.get({ pkey: 1 })
 const user_session = await sessionIndex.get({ fkey: 99, relation: "user_id" })
 
 // Subscribe to a session (AsyncGenerator)
-const session_subscription= sessionIndex.subscribe({ pkey: 1 })
-const user_session_subscription= sessionIndex.subscribe({ fkey: 99, relation: "user_id" })
+const session_subscription = sessionIndex.subscribe({ pkey: 1 })
+const user_session_subscription = sessionIndex.subscribe({ fkey: 99, relation: "user_id" })
 ```
+
+## Usage
+
+Index and relation names may use alphanumerics, underscore, dots, and forward slash (`[a-zA-Z0-9_\.\/]`).
+For example, these are all valid names:
+* `auth.users`
+* `auth.users/chats`
+* `auth.session_metadata/notifications...`
+
+Relations are joined to index names with the `@` symbol:
+* `session@user`
