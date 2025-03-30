@@ -353,7 +353,7 @@ export function createValkeyIndex<
     return value;
   }
 
-  function touchRelated(
+  function touch_related(
     pipeline: ChainableCommander,
     {
       pkey,
@@ -437,7 +437,7 @@ export function createValkeyIndex<
       ][]) {
         if (Array.isArray(fkey)) {
           fkey.forEach((item) => {
-            touchRelated(pipeline, {
+            touch_related(pipeline, {
               relation,
               pkey,
               fkey: item,
@@ -446,7 +446,7 @@ export function createValkeyIndex<
             });
           });
         } else if (fkey !== undefined) {
-          touchRelated(pipeline, {
+          touch_related(pipeline, {
             relation,
             pkey,
             fkey,
