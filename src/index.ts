@@ -70,7 +70,7 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
   relations: R[];
   ttl?: number | null;
   maxlen?: number | null;
-  toKey: (ref: ValkeyIndexRef<T, R>) => string;
+  key: (ref: ValkeyIndexRef<T, R>) => string;
   pkeys: (ref: ValkeyIndexRef<T, R>) => Promise<string[]>;
   related: (
     value: Partial<T>,
@@ -619,7 +619,7 @@ export function createValkeyIndex<
     valkey,
     name,
     relations,
-    toKey: _key,
+    key: _key,
     pkeys: _pkeys,
     ...{ get: get as ValkeyIndexGetHandler<T, R>, set, update },
     related,

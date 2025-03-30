@@ -109,10 +109,10 @@ export function appendStream<T, R extends keyof T>({
   void
 > {
   return async function append(
-    { valkey, toKey, touch, ttl = null, maxlen = null },
+    { valkey, key: _key, touch, ttl = null, maxlen = null },
     { pkey, input, id, ttl: ttl_, message },
   ) {
-    const key = toKey({ pkey });
+    const key = _key({ pkey });
     const value = input && convert(input);
     if (value === undefined) {
       return;
@@ -151,10 +151,10 @@ export function rangeStream<T, R extends keyof T>({
   Promise<StreamItem<T | undefined>[]>
 > {
   return async function range(
-    { valkey, toKey, touch, ttl = null, maxlen = null },
+    { valkey, key: _key, touch, ttl = null, maxlen = null },
     { pkey, start, stop, ttl: ttl_, message },
   ) {
-    const key = toKey({ pkey });
+    const key = _key({ pkey });
     const pipeline = valkey.multi();
     if (ttl !== null) {
       const [seconds] = (await valkey.time()) as [number, number];
@@ -198,8 +198,8 @@ export function readStream<T, R extends keyof T>({
     ops,
     { pkey, count, block, lastId, signal, ttl: ttl_, message },
   ): AsyncGenerator<StreamItem<T | undefined>> {
-    const { valkey, toKey, touch, ttl = null, maxlen = null } = ops;
-    const key = toKey({ pkey });
+    const { valkey, key: _key, touch, ttl = null, maxlen = null } = ops;
+    const key = _key({ pkey });
     const pipeline = valkey.multi();
     if (ttl !== null) {
       const [seconds] = (await valkey.time()) as [number, number];
