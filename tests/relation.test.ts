@@ -277,6 +277,18 @@ test("Relations", async () => {
     bar: 0,
     baz: 4,
   });
+  expect(await relationIndex.get({ fkey: 0, relation: "bar" })).toEqual({
+    1: {
+      foo: "ababa",
+      bar: 0,
+      baz: 2,
+    },
+    2: {
+      foo: "lalala",
+      bar: 0,
+      baz: 4,
+    },
+  });
   expect(await relationIndex.pkeysVia("bar", 0)).toEqual(["1", "2"]);
   expect(await relationIndex.pkeysVia("bar", 1)).toEqual([]);
   expect(await relationIndex.pkeysVia("bar", 10)).toEqual([]);
