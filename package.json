@@ -1,5 +1,6 @@
 {
   "name": "valkey-index",
+  "version": "0.0.0",
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
