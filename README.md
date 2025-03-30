@@ -44,5 +44,5 @@ const user_session = await sessionIndex.get({ fkey: 99, relation: "user_id" })
 
 // Subscribe to a session (returns AsyncGenerators)
 const session_subscription= sessionIndex.subscribe({ pkey: 1 })
-const user_session_subscription= sessionIndex.subscribe({ fkey: 1, relation: "user_id" })
+const user_session_subscription= sessionIndex.subscribe({ fkey: 99, relation: "user_id" })
 ```
