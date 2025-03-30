@@ -79,13 +79,13 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
     pkey: KeyPart;
     signal?: AbortSignal | undefined;
     test?: string | RegExp;
-  }) => AsyncIterable<string>;
+  }) => AsyncGenerator<string>;
   subscribeVia: (x: {
     fkey: KeyPart;
     relation: R;
     signal?: AbortSignal | undefined;
     test?: string | RegExp;
-  }) => AsyncIterable<string>;
+  }) => AsyncGenerator<string>;
   del: (pkey: KeyPart) => Promise<void>;
   delVia: (relation: R, fkey: KeyPart) => Promise<void>;
 };
@@ -342,12 +342,12 @@ export function createValkeyIndex<
     if (ttl !== null) {
       pipeline.expire(key, ttl);
     }
-    if (message !== undefined) {
-      pipeline.publish(key, message);
-    }
     pipeline.zremrangebyscore(key, "-inf", Date.now());
     if (maxlen !== null) {
       pipeline.zremrangebyrank(key, 0, -maxlen - 1);
+    }
+    if (message !== undefined) {
+      pipeline.publish(key, message);
     }
   }
 
@@ -392,37 +392,36 @@ export function createValkeyIndex<
       }
     }
     if (relations) {
-      if (!exists) {
-        for (const [relation, fkey] of Object.entries(relations) as [
-          R,
-          KeyPart | KeyPart[] | undefined,
-        ][]) {
-          if (Array.isArray(fkey)) {
-            fkey.forEach((item) => {
-              pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
-            });
-          } else if (fkey !== undefined) {
-            pipeline.zrem(toKey(fkey as KeyPart, relation), String(pkey));
-          }
-        }
-      } else {
-        for (const [relation, fkey] of Object.entries(relations) as [
-          R,
-          KeyPart | KeyPart[] | undefined,
-        ][]) {
-          if (Array.isArray(fkey)) {
-            fkey.forEach((item) => {
-              touchRelated(pipeline, relation, pkey, item as KeyPart, {
-                ttl: ttl_in,
-                message,
-              });
-            });
-          } else if (fkey !== undefined) {
-            touchRelated(pipeline, relation, pkey, fkey as KeyPart, {
+      // if (!exists) {
+      //   for (const [relation, fkey] of Object.entries(relations) as [
+      //     R,
+      //     KeyPart | KeyPart[] | undefined,
+      //   ][]) {
+      //     if (Array.isArray(fkey)) {
+      //       fkey.forEach((item) => {
+      //         pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
+      //       });
+      //     } else if (fkey !== undefined) {
+      //       pipeline.zrem(toKey(fkey as KeyPart, relation), String(pkey));
+      //     }
+      //   }
+      // } else {
+      for (const [relation, fkey] of Object.entries(relations) as [
+        R,
+        KeyPart | KeyPart[] | undefined,
+      ][]) {
+        if (Array.isArray(fkey)) {
+          fkey.forEach((item) => {
+            touchRelated(pipeline, relation, pkey, item as KeyPart, {
               ttl: ttl_in,
               message,
             });
-          }
+          });
+        } else if (fkey !== undefined) {
+          touchRelated(pipeline, relation, pkey, fkey as KeyPart, {
+            ttl: ttl_in,
+            message,
+          });
         }
       }
     }
@@ -447,7 +446,7 @@ export function createValkeyIndex<
     await subscription.subscribe(key);
     for await (const [channel, message] of on(subscription, "message", {
       signal,
-    }) as AsyncIterableIterator<[string, string]>) {
+    }) as AsyncGenerator<[string, string]>) {
       if (channel === key) {
         if (test === undefined) {
           yield message;
@@ -483,7 +482,7 @@ export function createValkeyIndex<
     await subscription.subscribe(key);
     for await (const [channel, message] of on(subscription, "message", {
       signal,
-    }) as AsyncIterableIterator<[string, string]>) {
+    }) as AsyncGenerator<[string, string]>) {
       if (channel === key) {
         if (test === undefined) {
           yield message;
