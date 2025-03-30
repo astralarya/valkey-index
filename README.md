@@ -5,9 +5,22 @@ Strongly typed index abstractions for Valkey
 
 ## Example
 
+Install from [npm](https://www.npmjs.com/package/valkey-index)
+
+```bash
+npm install valkey-index
+```
+
 Create an index:
 
 ```ts
+import {
+  createValkeyIndex,
+  getHash,
+  setHash,
+  updateHash,
+} from "valkey-index";
+
 type Session = {
   id: string,
   expires: Date,
@@ -38,11 +51,11 @@ await sessionIndex.set({
   }
 });
 
-// Find user by pkey or via user_id (relation is typed!)
+// Find user by pkey or via user_id (strongly typed!)
 const session = await sessionIndex.get({ pkey: 1 })
 const user_session = await sessionIndex.get({ fkey: 99, relation: "user_id" })
 
-// Subscribe to a session (returns AsyncGenerators)
+// Subscribe to a session (AsyncGenerator)
 const session_subscription= sessionIndex.subscribe({ pkey: 1 })
 const user_session_subscription= sessionIndex.subscribe({ fkey: 99, relation: "user_id" })
 ```
