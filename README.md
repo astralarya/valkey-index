@@ -14,12 +14,15 @@ npm install valkey-index
 Create an index:
 
 ```ts
+import Valkey from "iovalkey";
 import {
   createValkeyIndex,
   getHash,
   setHash,
   updateHash,
 } from "valkey-index";
+
+const valkey = new Valkey();
 
 type Session = {
   id: string,
@@ -71,3 +74,13 @@ For example, these are all valid names:
 
 Relations are joined to index names with the `@` symbol:
 * `session@user`
+
+Keys are joined to indexes with the `:` symbol:
+* `auth.users:alice`
+* `auth.session@user:bob`
+
+
+## Developing
+
+You can run a local Valkey instance with the `./start-valkey.sh` script.
+Set the `VKPORT` environment variable to change the port (default 6379).
