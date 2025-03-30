@@ -232,4 +232,67 @@ test("Relations", async () => {
   expect(await relationIndex.pkeysVia("baz", 4)).toEqual([]);
   expect(await relationIndex.pkeysVia("baz", 5)).toEqual(["1"]);
   expect(await relationIndex.pkeysVia("baz", 11)).toEqual(["2"]);
+
+  await relationIndex.del({ pkey: 1 });
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({});
+  expect(await relationIndex.get({ pkey: 2 })).toEqual({
+    foo: "falala",
+    bar: 1,
+    baz: 11,
+  });
+  expect(await relationIndex.pkeysVia("bar", 0)).toEqual([]);
+  expect(await relationIndex.pkeysVia("bar", 1)).toEqual(["2"]);
+  expect(await relationIndex.pkeysVia("bar", 10)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 2)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 4)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 11)).toEqual(["2"]);
+
+  await relationIndex.delVia({ fkey: 1, relation: "bar" });
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({});
+  expect(await relationIndex.get({ pkey: 2 })).toEqual({});
+  expect(await relationIndex.pkeysVia("bar", 0)).toEqual([]);
+  expect(await relationIndex.pkeysVia("bar", 1)).toEqual([]);
+  expect(await relationIndex.pkeysVia("bar", 10)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 2)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 4)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 11)).toEqual([]);
+
+  await relationIndex.set({
+    pkey: 1,
+    input: { foo: "ababa", bar: 0, baz: 2 },
+  });
+  await relationIndex.set({
+    pkey: 2,
+    input: { foo: "lalala", bar: 0, baz: 4 },
+  });
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({
+    foo: "ababa",
+    bar: 0,
+    baz: 2,
+  });
+  expect(await relationIndex.get({ pkey: 2 })).toEqual({
+    foo: "lalala",
+    bar: 0,
+    baz: 4,
+  });
+  expect(await relationIndex.pkeysVia("bar", 0)).toEqual(["1", "2"]);
+  expect(await relationIndex.pkeysVia("bar", 1)).toEqual([]);
+  expect(await relationIndex.pkeysVia("bar", 10)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 2)).toEqual(["1"]);
+  expect(await relationIndex.pkeysVia("baz", 4)).toEqual(["2"]);
+  expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 11)).toEqual([]);
+
+  await relationIndex.delVia({ fkey: 0, relation: "bar" });
+  expect(await relationIndex.get({ pkey: 1 })).toEqual({});
+  expect(await relationIndex.get({ pkey: 2 })).toEqual({});
+  expect(await relationIndex.pkeysVia("bar", 0)).toEqual([]);
+  expect(await relationIndex.pkeysVia("bar", 1)).toEqual([]);
+  expect(await relationIndex.pkeysVia("bar", 10)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 2)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 4)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 5)).toEqual([]);
+  expect(await relationIndex.pkeysVia("baz", 11)).toEqual([]);
 });
