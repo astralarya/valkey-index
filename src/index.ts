@@ -105,7 +105,7 @@ export type ValkeyIndexFunction<
   M extends ValkeyIndexSpec<T, R>,
   K extends keyof M,
 > = M[K] extends ValkeyIndexHandler<infer A, T, R, infer V>
-  ? (arg: A) => Promise<V>
+  ? (arg: A) => V
   : never;
 
 export type ValkeyIndexInterface<
