@@ -89,17 +89,12 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
       value?: Partial<T>;
     } & ValkeyIndexToucherOptions,
   ) => Promise<void>;
-  subscribe: (x: {
-    pkey: KeyPart;
-    signal?: AbortSignal | undefined;
-    test?: string | RegExp;
-  }) => AsyncGenerator<string>;
-  subscribeVia: (x: {
-    fkey: KeyPart;
-    relation: R;
-    signal?: AbortSignal | undefined;
-    test?: string | RegExp;
-  }) => AsyncGenerator<string>;
+  subscribe: (
+    x: ValkeyIndexRef<T, R> & {
+      signal?: AbortSignal | undefined;
+      test?: string | RegExp;
+    },
+  ) => AsyncGenerator<string>;
   del: (arg: { pkey: KeyPart }) => Promise<void>;
   delVia: (arg: { fkey: KeyPart; relation: R }) => Promise<void>;
 };
@@ -464,9 +459,7 @@ export function createValkeyIndex<
     }
   }
 
-  // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
-  // until then this leaks connections
-  async function* subscribe({
+  async function* subscribe_pkey({
     pkey,
     signal,
     test,
@@ -498,9 +491,7 @@ export function createValkeyIndex<
     }
   }
 
-  // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
-  // until then this leaks connections
-  async function* subscribeVia({
+  async function* subscribe_fkey({
     fkey,
     relation,
     signal,
@@ -532,6 +523,24 @@ export function createValkeyIndex<
         }
       }
     }
+  }
+
+  // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
+  // until then this leaks connections
+  function subscribe(
+    arg: ValkeyIndexRef<T, R> & {
+      signal?: AbortSignal;
+      test?: string | RegExp;
+    },
+  ) {
+    if ("pkey" in arg) {
+      return subscribe_pkey(arg);
+    } else if ("fkey" in arg && "relation" in arg) {
+      return subscribe_fkey(arg);
+    }
+    throw TypeError(
+      "valkey-index: subscribe() requires a pkey or relation and fkey",
+    );
   }
 
   async function del({ pkey }: { pkey: KeyPart }) {
@@ -574,7 +583,6 @@ export function createValkeyIndex<
     related,
     touch,
     subscribe,
-    subscribeVia,
     del,
     delVia,
   };

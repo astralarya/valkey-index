@@ -31,11 +31,11 @@ test("Subscription", async () => {
   expect(await subscriptionIndex.get({ pkey: 1 })).toEqual({});
 
   const subscribe1 = subscriptionIndex.subscribe({ pkey: 1 });
-  const subscribe2 = subscriptionIndex.subscribeVia({
+  const subscribe2 = subscriptionIndex.subscribe({
     fkey: 2,
     relation: "bar",
   });
-  const subscribe3_1 = subscriptionIndex.subscribeVia({
+  const subscribe3_1 = subscriptionIndex.subscribe({
     fkey: 3,
     relation: "bar",
   });
@@ -72,7 +72,7 @@ test("Subscription", async () => {
 
   const next1_2 = subscribe1.next();
   const next2_2 = subscribe2.next();
-  const subscribe3_2 = subscriptionIndex.subscribeVia({
+  const subscribe3_2 = subscriptionIndex.subscribe({
     fkey: 3,
     relation: "bar",
   });
@@ -106,7 +106,7 @@ test("Subscription", async () => {
 
   const next1_3 = subscribe1.next();
   const next2_3 = subscribe2.next();
-  const subscribe3_3 = subscriptionIndex.subscribeVia({
+  const subscribe3_3 = subscriptionIndex.subscribe({
     fkey: 3,
     relation: "bar",
   });
