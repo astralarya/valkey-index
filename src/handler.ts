@@ -112,7 +112,7 @@ export function appendStream<T, R extends keyof T>({
     { valkey, toKey, touch, ttl = null, maxlen = null },
     { pkey, input, id, ttl: ttl_, message },
   ) {
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const value = input && convert(input);
     if (value === undefined) {
       return;
@@ -154,7 +154,7 @@ export function rangeStream<T, R extends keyof T>({
     { valkey, toKey, touch, ttl = null, maxlen = null },
     { pkey, start, stop, ttl: ttl_, message },
   ) {
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const pipeline = valkey.multi();
     if (ttl !== null) {
       const [seconds] = (await valkey.time()) as [number, number];
@@ -199,7 +199,7 @@ export function readStream<T, R extends keyof T>({
     { pkey, count, block, lastId, signal, ttl: ttl_, message },
   ): AsyncGenerator<StreamItem<T | undefined>> {
     const { valkey, toKey, touch, ttl = null, maxlen = null } = ops;
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const pipeline = valkey.multi();
     if (ttl !== null) {
       const [seconds] = (await valkey.time()) as [number, number];

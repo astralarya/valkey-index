@@ -70,8 +70,8 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
   relations: R[];
   ttl?: number | null;
   maxlen?: number | null;
-  toKey: (id: KeyPart, relation?: R) => string;
-  pkeysVia: (relation: R, fkey: KeyPart) => Promise<string[]>;
+  toKey: (ref: ValkeyIndexRef<T, R>) => string;
+  pkeys: (ref: ValkeyIndexRef<T, R>) => Promise<string[]>;
   related: (
     value: Partial<T>,
   ) => Record<R, KeyPart[] | KeyPart | undefined> | undefined;
@@ -250,22 +250,36 @@ export function createValkeyIndex<
   functions = {} as M,
 ) {
   if (!VALKEY_INDEX_NAME_REGEX.test(name)) {
-    throw Error(
+    throw TypeError(
       "valkey-index: name may only contain alphanumeric, underscore, and dots",
     );
   }
   if (relations.find((x) => !VALKEY_INDEX_NAME_REGEX.test(String(x)))) {
-    throw Error(
+    throw TypeError(
       "valkey-index: related names may only contain alphanumeric, underscore, and dots",
     );
   }
 
-  function toKey(id: KeyPart, relation?: R) {
-    if (relation) {
-      return `${name}@${String(relation)}:${String(id)}`;
-    } else {
-      return `${name}:${String(id)}`;
+  function toKey(ref: ValkeyIndexRef<T, R>) {
+    if ("pkey" in ref) {
+      return `${name}:${String(ref.pkey)}`;
+    } else if ("fkey" in ref && "relation" in ref) {
+      return `${name}@${String(ref.relation)}:${String(ref.fkey)}`;
     }
+    throw TypeError(
+      "valkey-index: toKey() requires a pkey or fkey and relation",
+    );
+  }
+
+  async function pkeys(ref: ValkeyIndexRef<T, R>) {
+    if ("pkey" in ref) {
+      return [toKey(ref)];
+    } else if ("fkey" in ref && "relation" in ref) {
+      return valkey.zrange(toKey(ref), 0, "-1");
+    }
+    throw TypeError(
+      "valkey-index: pkeys() requires a pkey or fkey and relation",
+    );
   }
 
   function related(value: Partial<T>) {
@@ -282,20 +296,15 @@ export function createValkeyIndex<
     return results as Record<R, KeyPart | KeyPart[] | undefined>;
   }
 
-  async function pkeysVia(relation: R, fkey: KeyPart) {
-    const key = toKey(fkey, relation);
-    return valkey.zrange(key, 0, "-1");
-  }
-
   async function get_pkey({
     pkey,
     ttl: ttl_,
     message,
   }: { pkey: KeyPart } & ValkeyIndexToucherOptions) {
     if (!get_arg) {
-      throw Error("valkey-index: get() invoked without being defined");
+      throw TypeError("valkey-index: get() invoked without being defined");
     }
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const value = await get_arg(ops, { key });
     const pipeline = valkey.multi();
     await touch(pipeline, { pkey, value, ttl: ttl_, message });
@@ -307,10 +316,13 @@ export function createValkeyIndex<
     if ("pkey" in arg) {
       return get_pkey(arg);
     } else if ("fkey" in arg && "relation" in arg) {
-      const pkeys = await pkeysVia(arg.relation, arg.fkey);
+      const pkeys_ = await pkeys(arg);
+      if (!pkeys_) {
+        return {} as Record<R, T | undefined>;
+      }
       return Object.fromEntries(
         await Promise.all(
-          pkeys.map(async (pkey) => {
+          pkeys_.map(async (pkey) => {
             return [pkey, await get_pkey({ ...arg, pkey })] as const;
           }),
         ),
@@ -326,12 +338,14 @@ export function createValkeyIndex<
     message,
   }: { pkey: KeyPart; input: T } & ValkeyIndexToucherOptions) {
     if (!get_arg) {
-      throw Error("valkey-index: set() invoked without get() being defined");
+      throw TypeError(
+        "valkey-index: set() invoked without get() being defined",
+      );
     }
     if (!set_) {
-      throw Error("valkey-index: set() invoked without being defined");
+      throw TypeError("valkey-index: set() invoked without being defined");
     }
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const curr_value = await get_arg(ops, { key });
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
@@ -350,12 +364,14 @@ export function createValkeyIndex<
     message,
   }: { pkey: KeyPart; input: Partial<T> } & ValkeyIndexToucherOptions) {
     if (!get_arg) {
-      throw Error("valkey-index: update() invoked without get() being defined");
+      throw TypeError(
+        "valkey-index: update() invoked without get() being defined",
+      );
     }
     if (!update_) {
-      throw Error("valkey-index: update() invoked without being defined");
+      throw TypeError("valkey-index: update() invoked without being defined");
     }
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const curr_value = await get_arg(ops, { key, ttl: ttl_, message });
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
@@ -386,7 +402,7 @@ export function createValkeyIndex<
       fkey: KeyPart;
     } & ValkeyIndexToucherOptions,
   ) {
-    const key = toKey(fkey, relation);
+    const key = toKey({ fkey, relation });
     if (ttl_in instanceof Date) {
       pipeline.zadd(key, ttl_in.valueOf(), String(pkey));
     } else if (typeof ttl_in === "number") {
@@ -423,7 +439,7 @@ export function createValkeyIndex<
       rm?: Record<R, KeyPart[] | KeyPart | undefined>;
     } & ValkeyIndexToucherOptions,
   ) {
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     // const exists = (await valkey.exists(key)) !== 0;
     const relations = value && related ? related(value) : undefined;
     if (ttl_ instanceof Date) {
@@ -444,10 +460,10 @@ export function createValkeyIndex<
       ][]) {
         if (Array.isArray(fkey)) {
           fkey.forEach((item) => {
-            pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
+            pipeline.zrem(toKey({ fkey: item, relation }), String(pkey));
           });
         } else if (fkey !== undefined) {
-          pipeline.zrem(toKey(fkey as KeyPart, relation), String(pkey));
+          pipeline.zrem(toKey({ fkey, relation }), String(pkey));
         }
       }
     }
@@ -491,7 +507,7 @@ export function createValkeyIndex<
     if (signal?.aborted) {
       return;
     }
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const subscription = valkey.duplicate();
     await subscription.subscribe(key);
     for await (const [channel, message] of on(subscription, "message", {
@@ -526,7 +542,7 @@ export function createValkeyIndex<
     if (signal?.aborted) {
       return;
     }
-    const key = toKey(fkey, relation);
+    const key = toKey({ fkey, relation });
     const subscription = valkey.duplicate();
     await subscription.subscribe(key);
     for await (const [channel, message] of on(subscription, "message", {
@@ -566,7 +582,7 @@ export function createValkeyIndex<
   }
 
   async function del_pkey({ pkey }: { pkey: KeyPart }) {
-    const key = toKey(pkey);
+    const key = toKey({ pkey });
     const value = get_pkey ? await get_pkey({ pkey }) : undefined;
     const relations = value && related ? related(value) : null;
     const pipeline = valkey.multi();
@@ -577,10 +593,10 @@ export function createValkeyIndex<
       ][]) {
         if (Array.isArray(fkey)) {
           fkey.forEach((item) => {
-            pipeline.zrem(toKey(item as KeyPart, relation), String(pkey));
+            pipeline.zrem(toKey({ fkey: item, relation }), String(pkey));
           });
         } else if (fkey !== undefined) {
-          pipeline.zrem(toKey(fkey as KeyPart, relation), String(pkey));
+          pipeline.zrem(toKey({ fkey, relation }), String(pkey));
         }
       }
     }
@@ -592,7 +608,7 @@ export function createValkeyIndex<
     if ("pkey" in arg) {
       return del_pkey(arg);
     } else if ("fkey" in arg && "relation" in arg) {
-      const key = toKey(arg.fkey, arg.relation);
+      const key = toKey(arg);
       const pkeys = await valkey.zrange(key, 0, "-1");
       await valkey.del(key);
       await Promise.all(pkeys.map((pkey) => del_pkey({ pkey })));
@@ -604,7 +620,7 @@ export function createValkeyIndex<
     name,
     relations,
     toKey,
-    pkeysVia,
+    pkeys,
     ...{ get: get as ValkeyIndexGetHandler<T, R>, set, update },
     related,
     touch,
