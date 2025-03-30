@@ -60,6 +60,7 @@ const session_subscription = sessionIndex.subscribe({ pkey: 1 })
 const user_session_subscription = sessionIndex.subscribe({ fkey: 99, relation: "user_id" })
 ```
 
+
 ## Usage
 
 Index and relation names may use alphanumerics, underscore, dots, and forward slash (`[a-zA-Z0-9_\.\/]`).
