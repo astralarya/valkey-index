@@ -61,11 +61,21 @@ test("Subscription", async () => {
   ).toEqual([
     {
       done: false,
-      value: "hello",
+      value: {
+        source: {
+          pkey: 1,
+        },
+        message: "hello",
+      },
     },
     {
       done: false,
-      value: "hello",
+      value: {
+        source: {
+          pkey: 1,
+        },
+        message: "hello",
+      },
     },
     undefined,
   ]);
@@ -95,11 +105,21 @@ test("Subscription", async () => {
   ).toEqual([
     {
       done: false,
-      value: "world",
+      value: {
+        source: {
+          pkey: 1,
+        },
+        message: "world",
+      },
     },
     {
       done: false,
-      value: "world",
+      value: {
+        source: {
+          pkey: 1,
+        },
+        message: "world",
+      },
     },
     undefined,
   ]);
@@ -129,12 +149,22 @@ test("Subscription", async () => {
   ).toEqual([
     {
       done: false,
-      value: "good",
+      value: {
+        source: {
+          pkey: 1,
+        },
+        message: "good",
+      },
     },
     undefined,
     {
       done: false,
-      value: "good",
+      value: {
+        source: {
+          pkey: 1,
+        },
+        message: "good",
+      },
     },
   ]);
 }, 10000);

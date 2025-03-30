@@ -94,7 +94,7 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
       signal?: AbortSignal | undefined;
       test?: string | RegExp;
     },
-  ) => AsyncGenerator<string>;
+  ) => AsyncGenerator<ValkeyIndexEvent<T, R>>;
   del: (arg: ValkeyIndexRef<T, R>) => Promise<void>;
 };
 
@@ -131,6 +131,25 @@ export type StreamItem<T> = {
   id: string;
   data: T;
 };
+
+export type ValkeyIndexEvent<T, R extends keyof T> = {
+  source: ValkeyIndexRef<T, R>;
+  message: string;
+};
+
+function parseEvent<T, R extends keyof T>(data: string) {
+  return JSON.parse(data) as ValkeyIndexEvent<T, R>;
+}
+
+function stringifyEvent<T, R extends keyof T>(
+  source: ValkeyIndexRef<T, R>,
+  message: string,
+) {
+  return JSON.stringify({
+    source,
+    message,
+  });
+}
 
 export function calculateRm<T, R extends keyof T>({
   curr,
@@ -385,7 +404,8 @@ export function createValkeyIndex<
       pipeline.zremrangebyrank(key, 0, -maxlen - 1);
     }
     if (message !== undefined) {
-      pipeline.publish(key, message);
+      const event = stringifyEvent({ pkey }, message);
+      pipeline.publish(key, event);
     }
   }
 
@@ -414,7 +434,8 @@ export function createValkeyIndex<
       pipeline.expire(key, ttl);
     }
     if (message !== undefined) {
-      pipeline.publish(key, message);
+      const event = stringifyEvent({ pkey }, message);
+      pipeline.publish(key, event);
     }
     if (rm) {
       for (const [relation, fkey] of Object.entries(rm) as [
@@ -477,14 +498,15 @@ export function createValkeyIndex<
       signal,
     }) as AsyncGenerator<[string, string]>) {
       if (channel === key) {
+        const event = parseEvent(message);
         if (test === undefined) {
-          yield message;
+          yield event;
         } else if (test instanceof RegExp) {
-          if (test.test(message)) {
-            yield message;
+          if (event?.message && test.test(event.message)) {
+            yield event;
           }
-        } else if (message === test) {
-          yield message;
+        } else if (event?.message === test) {
+          yield event;
         }
       }
     }
@@ -511,14 +533,15 @@ export function createValkeyIndex<
       signal,
     }) as AsyncGenerator<[string, string]>) {
       if (channel === key) {
+        const event = parseEvent(message);
         if (test === undefined) {
-          yield message;
+          yield event;
         } else if (test instanceof RegExp) {
-          if (test.test(message)) {
-            yield message;
+          if (event?.message && test.test(event.message)) {
+            yield event;
           }
-        } else if (message === test) {
-          yield message;
+        } else if (event?.message === test) {
+          yield event;
         }
       }
     }
