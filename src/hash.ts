@@ -102,7 +102,7 @@ export function ValkeyHashIndex<
     maxlen,
     getRelations,
   });
-  const { key, pkeys, publish, subscribe, touch, del } = indexer;
+  const { key, pkeys, touch } = indexer;
 
   async function _get_pkey({
     pkey,
