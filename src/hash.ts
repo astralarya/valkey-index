@@ -9,6 +9,7 @@ import {
   type KeyPart,
   validateValkeyName,
   ValkeyIndexer,
+  type ValkeyIndexerContext,
   type ValkeyIndexerProps,
   type ValkeyIndexerReturn,
   type ValkeyIndexRef,
@@ -280,11 +281,7 @@ export function setHash<T, R extends keyof T>({
   convert?: ValueSerializer<T>;
 } = {}) {
   return async function set(
-    {
-      pipeline,
-    }: ValkeyIndexerReturn<T, R> & {
-      pipeline: ChainableCommander;
-    },
+    { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: T },
   ) {
     if (input === undefined) {
@@ -305,11 +302,7 @@ export function updateHash<T, R extends keyof T>({
   convert?: ValueSerializer<Partial<T>>;
 } = {}) {
   return async function update(
-    {
-      pipeline,
-    }: ValkeyIndexerReturn<T, R> & {
-      pipeline: ChainableCommander;
-    },
+    { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: Partial<T> },
   ) {
     const value = convert(input);

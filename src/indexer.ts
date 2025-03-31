@@ -91,6 +91,13 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
   del: (arg: ValkeyIndexRef<T, R>) => Promise<void>;
 };
 
+export type ValkeyIndexerContext<T, R extends keyof T> = ValkeyIndexerReturn<
+  T,
+  R
+> & {
+  pipeline: ChainableCommander;
+};
+
 export function ValkeyIndexer<T, R extends keyof T>({
   valkey,
   name,
