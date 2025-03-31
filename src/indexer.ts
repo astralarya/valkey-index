@@ -67,15 +67,12 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
       message: string;
     },
   ) => Promise<void>;
-  subscribe: ({
-    ref,
-    signal,
-    test,
-  }: {
-    ref: ValkeyIndexRef<T, R>;
-    signal?: AbortSignal;
-    test?: string | RegExp;
-  }) => AsyncGenerator<ValkeyIndexEvent<T, R>>;
+  subscribe: (
+    arg: ValkeyIndexRef<T, R> & {
+      signal?: AbortSignal;
+      test?: string | RegExp;
+    },
+  ) => AsyncGenerator<ValkeyIndexEvent<T, R>>;
   touch: (
     pipeline: ChainableCommander,
     arg: {
@@ -170,19 +167,17 @@ export function ValkeyIndexer<T, R extends keyof T>({
     await pipeline.exec();
   }
 
-  async function* subscribe({
-    ref,
-    signal,
-    test,
-  }: {
-    ref: ValkeyIndexRef<T, R>;
-    signal?: AbortSignal;
-    test?: string | RegExp;
-  }) {
+  async function* subscribe(
+    arg: ValkeyIndexRef<T, R> & {
+      signal?: AbortSignal;
+      test?: string | RegExp;
+    },
+  ) {
+    const { signal, test } = arg;
     if (signal?.aborted) {
       return;
     }
-    const key_ = key(ref);
+    const key_ = key(arg);
     const subscription = valkey.duplicate();
     await subscription.subscribe(key_);
     for await (const [channel, message] of on(subscription, "message", {

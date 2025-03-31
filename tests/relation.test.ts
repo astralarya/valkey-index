@@ -1,25 +1,14 @@
-import {
-  createValkeyIndex,
-  getHash,
-  setHash,
-  updateHash,
-  type KeyPart,
-} from "../src";
+import { ValkeyHashIndex, type KeyPart } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
 
-const relationIndex = createValkeyIndex(
-  {
-    valkey,
-    name: "relation",
-    exemplar: 0 as TestObject | 0,
-    relations: ["bar", "baz"],
-    get: getHash(),
-    set: setHash(),
-    update: updateHash(),
-  },
-  {
+const relationIndex = ValkeyHashIndex({
+  valkey,
+  name: "relation",
+  exemplar: 0 as TestObject | 0,
+  relations: ["bar", "baz"],
+  functions: {
     use: async ({ get, update }, { pkey }: { pkey: KeyPart }) => {
       const val = await get!({ pkey });
       if (val?.baz === undefined) {
@@ -30,7 +19,7 @@ const relationIndex = createValkeyIndex(
       return next;
     },
   },
-);
+});
 
 test("Relations", async () => {
   expect(await relationIndex.get({ pkey: 1 })).toEqual({});

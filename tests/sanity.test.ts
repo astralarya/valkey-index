@@ -1,4 +1,4 @@
-import { createValkeyIndex } from "../src";
+import { ValkeyHashIndex } from "../src";
 import { useBeforeEach, valkey } from "./index.test";
 
 useBeforeEach();
@@ -17,7 +17,7 @@ const bad_names = [
 test("Sanity", () => {
   bad_names.forEach((bad_name) => {
     expect(() => {
-      createValkeyIndex({
+      ValkeyHashIndex({
         valkey,
         name: bad_name,
         exemplar: undefined,
@@ -28,7 +28,7 @@ test("Sanity", () => {
 
   bad_names.forEach((bad_name, idx) => {
     expect(() => {
-      createValkeyIndex({
+      ValkeyHashIndex({
         valkey,
         name: "good_name",
         exemplar: { [bad_name]: 0 },
@@ -39,7 +39,7 @@ test("Sanity", () => {
 
   good_names.forEach((good_name) => {
     expect(() => {
-      createValkeyIndex({
+      ValkeyHashIndex({
         name: good_name,
         valkey,
         exemplar: undefined,
@@ -48,7 +48,7 @@ test("Sanity", () => {
     }).not.toThrow(Error);
     good_names.forEach((good_relation) => {
       expect(() => {
-        createValkeyIndex({
+        ValkeyHashIndex({
           name: good_name,
           valkey,
           exemplar: { [good_relation]: 0 },
@@ -57,7 +57,7 @@ test("Sanity", () => {
       }).not.toThrow(Error);
       good_names.forEach((good_relation2) => {
         expect(() => {
-          createValkeyIndex({
+          ValkeyHashIndex({
             name: good_name,
             valkey,
             exemplar: { [good_relation]: 0, [good_relation2]: 0 },

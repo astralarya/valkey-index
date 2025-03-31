@@ -9,7 +9,6 @@ import {
 import {
   ValkeyIndexer,
   type ValkeyIndexerProps,
-  type ValkeyIndexerReturn,
   type ValkeyIndexRef,
   type ValkeyIndexRelations,
 } from "./indexer";
@@ -55,13 +54,6 @@ export type ValkeyHashIndexOps<T, R extends keyof T> = {
   }) => Promise<void>;
 };
 
-export type ValkeyHashIndexReturn<T, R extends keyof T> = ValkeyIndexerProps<
-  T,
-  R
-> &
-  ValkeyIndexerReturn<T, R> &
-  ValkeyHashIndexOps<T, R>;
-
 export function ValkeyHashIndex<
   T,
   R extends keyof T,
@@ -100,13 +92,14 @@ export function ValkeyHashIndex<
     return value ? related(value) : ({} as ValkeyIndexRelations<T, R>);
   }
 
-  const { key, pkeys, publish, subscribe, touch, del } = ValkeyIndexer<T, R>({
-    valkey,
-    name,
-    ttl,
-    maxlen,
-    getRelations,
-  });
+  const { key, pkeys, mapRelations, publish, subscribe, touch, del } =
+    ValkeyIndexer<T, R>({
+      valkey,
+      name,
+      ttl,
+      maxlen,
+      getRelations,
+    });
 
   async function _get_pkey({
     pkey,
@@ -214,6 +207,11 @@ export function ValkeyHashIndex<
   const ops = {
     valkey,
     name,
+    ttl,
+    maxlen,
+    key,
+    pkeys,
+    mapRelations,
     get,
     set,
     update,

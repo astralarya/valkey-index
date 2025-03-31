@@ -1,20 +1,15 @@
 import { sleep } from "bun";
-import { createValkeyIndex, getHash, setHash, updateHash } from "../src";
+import { ValkeyHashIndex } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
 
-const publishIndex = createValkeyIndex(
-  {
-    valkey,
-    name: "publish",
-    exemplar: 0 as TestObject | 0,
-    relations: ["bar", "baz"],
-    get: getHash(),
-    set: setHash(),
-    update: updateHash(),
-  },
-  {
+const publishIndex = ValkeyHashIndex({
+  valkey,
+  name: "publish",
+  exemplar: 0 as TestObject | 0,
+  relations: ["bar", "baz"],
+  functions: {
     use: async ({ get, update }, pkey: string) => {
       const val = await get!({ pkey });
       if (val?.baz === undefined) {
@@ -25,7 +20,7 @@ const publishIndex = createValkeyIndex(
       return next;
     },
   },
-);
+});
 
 test("Publish", async () => {
   const subscribe1 = publishIndex.subscribe({ pkey: 1 });
