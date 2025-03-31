@@ -54,6 +54,10 @@ export type ValkeyIndexerProps<T, R extends keyof T> = {
 };
 
 export type ValkeyIndexerReturn<T, R extends keyof T> = {
+  valkey: Redis;
+  name: string;
+  ttl?: number;
+  maxlen?: number;
   key: (ref: ValkeyIndexRef<T, R>) => string;
   pkeys: (ref: ValkeyIndexRef<T, R>) => Promise<string[]>;
   mapRelations: (
@@ -329,6 +333,10 @@ export function ValkeyIndexer<T, R extends keyof T>({
   }
 
   return {
+    valkey,
+    name,
+    ttl,
+    maxlen,
     key,
     pkeys,
     mapRelations,

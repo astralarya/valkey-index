@@ -1,9 +1,4 @@
-import {
-  type KeyPart,
-  type StreamItem,
-  type ValkeyIndexHandler,
-  type ValkeyIndexToucherOptions,
-} from ".";
+import { type KeyPart, type ValkeyIndexerReturn } from ".";
 import {
   assembleRecord,
   DEFAULT_DESERIALIZER,
@@ -16,19 +11,16 @@ export function appendStream<T, R extends keyof T>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
-} = {}): ValkeyIndexHandler<
-  {
-    pkey: KeyPart;
-    input: T | undefined;
-    id?: string;
-  } & ValkeyIndexToucherOptions,
-  T,
-  R,
-  Promise<void>
-> {
+} = {}) {
   return async function append(
-    { valkey, key: _key, touch, ttl = null, maxlen = null },
-    { pkey, input, id, ttl: ttl_, message },
+    { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, R>,
+    {
+      pkey,
+      input,
+      id,
+      ttl: ttl_,
+      message,
+    }: { pkey: KeyPart; input: T; id: string; ttl?: number; message: string },
   ) {
     const key = _key({ pkey });
     const value = input && convert(input);
@@ -36,11 +28,11 @@ export function appendStream<T, R extends keyof T>({
       return;
     }
     const pipeline = valkey.multi();
-    if (ttl !== null) {
+    if (ttl !== undefined) {
       const [seconds] = (await valkey.time()) as [number, number];
       pipeline.xtrim(key, "MINID", "~", (seconds - ttl) * 1000);
     }
-    if (maxlen !== null) {
+    if (maxlen !== undefined) {
       pipeline.xtrim(key, "MAXLEN", "~", maxlen);
     }
     pipeline.xadd(
@@ -62,23 +54,30 @@ export function rangeStream<T, R extends keyof T>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
-} = {}): ValkeyIndexHandler<
-  { pkey: KeyPart; start?: string; stop?: string } & ValkeyIndexToucherOptions,
-  T,
-  R,
-  Promise<StreamItem<T | undefined>[]>
-> {
+} = {}) {
   return async function range(
-    { valkey, key: _key, touch, ttl = null, maxlen = null },
-    { pkey, start, stop, ttl: ttl_, message },
+    { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, R>,
+    {
+      pkey,
+      start,
+      stop,
+      ttl: ttl_,
+      message,
+    }: {
+      pkey: KeyPart;
+      start?: string;
+      stop?: string;
+      ttl?: number;
+      message: string;
+    },
   ) {
     const key = _key({ pkey });
     const pipeline = valkey.multi();
-    if (ttl !== null) {
+    if (ttl !== undefined) {
       const [seconds] = (await valkey.time()) as [number, number];
       pipeline.xtrim(key, "MINID", "~", (seconds - ttl) * 1000);
     }
-    if (maxlen !== null) {
+    if (maxlen !== undefined) {
       pipeline.xtrim(key, "MAXLEN", "~", maxlen);
     }
     pipeline.xrange(key, start ?? "-", stop ?? "+");
@@ -94,27 +93,37 @@ export function rangeStream<T, R extends keyof T>({
   };
 }
 
+export type StreamItem<T> = {
+  id: string;
+  data: T;
+};
+
 // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
 // until then this leaks connections
 export function readStream<T, R extends keyof T>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
-} = {}): ValkeyIndexHandler<
-  {
-    pkey: KeyPart;
-    count?: number;
-    block?: number;
-    lastId?: string;
-    signal?: AbortSignal;
-  } & ValkeyIndexToucherOptions,
-  T,
-  R,
-  AsyncGenerator<StreamItem<T | undefined>>
-> {
+} = {}) {
   return async function* read(
-    ops,
-    { pkey, count, block, lastId, signal, ttl: ttl_, message },
+    ops: ValkeyIndexerReturn<T, R>,
+    {
+      pkey,
+      count,
+      block,
+      lastId,
+      signal,
+      ttl: ttl_,
+      message,
+    }: {
+      pkey: KeyPart;
+      count?: number;
+      block?: number;
+      lastId?: string;
+      signal?: AbortSignal;
+      ttl?: number;
+      message: string;
+    },
   ): AsyncGenerator<StreamItem<T | undefined>> {
     const { valkey, key: _key, touch, ttl = null, maxlen = null } = ops;
     const key = _key({ pkey });

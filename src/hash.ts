@@ -92,14 +92,14 @@ export function ValkeyHashIndex<
     return value ? related(value) : ({} as ValkeyIndexRelations<T, R>);
   }
 
-  const { key, pkeys, mapRelations, publish, subscribe, touch, del } =
-    ValkeyIndexer<T, R>({
-      valkey,
-      name,
-      ttl,
-      maxlen,
-      getRelations,
-    });
+  const indexer = ValkeyIndexer<T, R>({
+    valkey,
+    name,
+    ttl,
+    maxlen,
+    getRelations,
+  });
+  const { key, pkeys, publish, subscribe, touch, del } = indexer;
 
   async function _get_pkey({
     pkey,
@@ -205,20 +205,10 @@ export function ValkeyHashIndex<
   }
 
   const ops = {
-    valkey,
-    name,
-    ttl,
-    maxlen,
-    key,
-    pkeys,
-    mapRelations,
+    ...indexer,
     get,
     set,
     update,
-    publish,
-    subscribe,
-    touch,
-    del,
   };
 
   return {
