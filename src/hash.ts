@@ -7,6 +7,7 @@ import {
   type ValueDeserializer,
 } from "./serde";
 import {
+  validateValkeyName,
   ValkeyIndexer,
   type ValkeyIndexerProps,
   type ValkeyIndexRef,
@@ -69,6 +70,8 @@ export function ValkeyHashIndex<
   deserializer = DEFAULT_DESERIALIZER,
   update_serializer = DEFAULT_SERIALIZER,
 }: ValkeyHashIndexProps<T, R, F>) {
+  relations.map((x) => validateValkeyName(String(x)));
+
   const get_ = getHash({ convert: deserializer });
   const set_ = setHash({ convert: serializer });
   const update_ = updateHash({ convert: update_serializer });
