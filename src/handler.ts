@@ -106,7 +106,7 @@ export function appendStream<T, R extends keyof T>({
   } & ValkeyIndexToucherOptions,
   T,
   R,
-  void
+  Promise<void>
 > {
   return async function append(
     { valkey, key: _key, touch, ttl = null, maxlen = null },
