@@ -89,6 +89,11 @@ export type ValkeyIndexOps<T, R extends keyof T> = {
       value?: Partial<T>;
     } & ValkeyIndexToucherOptions,
   ) => Promise<void>;
+  publish: (
+    arg: ValkeyIndexRef<T, R> & {
+      message: string;
+    },
+  ) => Promise<void>;
   subscribe: (
     x: ValkeyIndexRef<T, R> & {
       signal?: AbortSignal | undefined;
@@ -495,6 +500,60 @@ export function createValkeyIndex<
     }
   }
 
+  async function _publish_pkey(
+    pipeline: ChainableCommander,
+    {
+      pkey,
+      message,
+    }: {
+      pkey: KeyPart;
+      message: string;
+    },
+  ) {
+    const key = _key({ pkey });
+    const value = await _get_pkey({ pkey });
+    const relations = value && related ? related(value) : undefined;
+    const event = stringifyEvent({ pkey }, message);
+    pipeline.publish(key, event);
+    if (relations) {
+      for (const [relation, fkey] of Object.entries(relations) as [
+        R,
+        KeyPart | KeyPart[] | undefined,
+      ][]) {
+        if (Array.isArray(fkey)) {
+          fkey.forEach((item) => {
+            const related_key = _key({ fkey: item, relation });
+            pipeline.publish(related_key, event);
+          });
+        } else if (fkey !== undefined) {
+          const related_key = _key({ fkey, relation });
+          pipeline.publish(related_key, event);
+        }
+      }
+    }
+  }
+
+  async function publish(arg: ValkeyIndexRef<T, R> & { message: string }) {
+    const pipeline = valkey.multi();
+    if ("pkey" in arg) {
+      _publish_pkey(pipeline, arg);
+    } else if ("fkey" in arg && "relation" in arg) {
+      const pkeys = await _pkeys(arg);
+      if (!pkeys) {
+        return;
+      }
+      const pipeline = valkey.multi();
+      for (const pkey of pkeys) {
+        _publish_pkey(pipeline, { pkey, message: arg.message });
+      }
+    } else {
+      throw TypeError(
+        "valkey-index: publish() requires a pkey or relation and fkey",
+      );
+    }
+    await pipeline.exec();
+  }
+
   async function* _subscribe_pkey({
     pkey,
     signal,
@@ -624,6 +683,7 @@ export function createValkeyIndex<
     ...{ get: get as ValkeyIndexGetHandler<T, R>, set, update },
     related,
     touch,
+    publish,
     subscribe,
     del,
   };
