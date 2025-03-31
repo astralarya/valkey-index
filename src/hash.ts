@@ -244,7 +244,7 @@ export function ValkeyHashIndex<
     return;
   }
 
-  const ops = {
+  const ops: ValkeyHashIndexInterface<T, R> = {
     ...indexer,
     get,
     set,

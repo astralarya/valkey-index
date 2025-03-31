@@ -99,7 +99,7 @@ export function ValkeyStreamIndex<
     return read_(indexer, arg);
   }
 
-  const ops = {
+  const ops: ValkeyStreamIndexInterface<T> = {
     ...indexer,
     append,
     range,
