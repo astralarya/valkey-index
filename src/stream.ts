@@ -1,98 +1,16 @@
-import SuperJSON from "superjson";
-
 import {
   type KeyPart,
   type StreamItem,
-  type ValkeyIndexGetter,
   type ValkeyIndexHandler,
-  type ValkeyIndexSetter,
   type ValkeyIndexToucherOptions,
-  type ValkeyIndexUpdater,
 } from ".";
-
-export type ValueSerializer<T> = (
-  input: T,
-) => Record<string, string | number | undefined> | undefined;
-
-export type ValueDeserializer<T> = (
-  input: Record<string, string>,
-) => T | undefined;
-
-function DEFAULT_SERIALIZER<T>(input: T) {
-  if (!input) {
-    return {};
-  } else if (typeof input === "object") {
-    return Object.fromEntries(
-      Object.entries(input).map(([key, val]) => {
-        return [key, SuperJSON.stringify(val)];
-      }),
-    );
-  }
-}
-
-function DEFAULT_DESERIALIZER<T>(input: Record<string, string | undefined>) {
-  return Object.fromEntries(
-    Object.entries(input).map(([key, val]) => {
-      return [key, val ? SuperJSON.parse(val) : val];
-    }),
-  ) as T;
-}
-
-export function assembleRecord(fields: string[]) {
-  const r: Record<string, string> = {};
-  for (let i = 0; i + 2 <= fields.length; i += 2) {
-    r[fields[i]!] = fields[i + 1]!;
-  }
-  return r;
-}
-
-export function getHash<T, R extends keyof T>({
-  convert = DEFAULT_DESERIALIZER,
-}: {
-  convert?: ValueDeserializer<T>;
-} = {}): ValkeyIndexGetter<T, R> {
-  return async function get({ valkey }, { key }) {
-    const value = await valkey.hgetall(key);
-    return convert(value);
-  };
-}
-
-export function setHash<T, R extends keyof T>({
-  convert = DEFAULT_SERIALIZER,
-}: {
-  convert?: ValueSerializer<T>;
-} = {}): ValkeyIndexSetter<T, R> {
-  return async function set(_ops, pipeline, { key, input }) {
-    if (input === undefined) {
-      return;
-    }
-    const value = convert(input);
-    if (value === undefined) {
-      return;
-    }
-    pipeline.del(key);
-    pipeline.hset(key, value);
-  };
-}
-
-export function updateHash<T, R extends keyof T>({
-  convert = DEFAULT_SERIALIZER,
-}: {
-  convert?: ValueSerializer<Partial<T>>;
-} = {}): ValkeyIndexUpdater<T, R> {
-  return async function update(_ops, pipeline, { key, input }) {
-    const value = convert(input);
-    if (value === undefined) {
-      return;
-    }
-    for (const [field, field_value] of Object.entries(value)) {
-      if (field_value === undefined) {
-        continue;
-      }
-      pipeline.hset(key, field, field_value);
-    }
-  };
-}
+import {
+  assembleRecord,
+  DEFAULT_DESERIALIZER,
+  DEFAULT_SERIALIZER,
+  type ValueDeserializer,
+  type ValueSerializer,
+} from "./serde";
 
 export function appendStream<T, R extends keyof T>({
   convert = DEFAULT_SERIALIZER,

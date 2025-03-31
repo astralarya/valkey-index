@@ -2,7 +2,8 @@ import { on } from "events";
 import type Redis from "iovalkey";
 import { type ChainableCommander } from "iovalkey";
 
-export * from "./handler";
+export * from "./stream";
+export * from "./hash";
 
 export const DEFAULT_TTL = 60 * 60 * 24;
 export const DEFAULT_MAXLEN = 8;
