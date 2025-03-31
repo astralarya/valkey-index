@@ -533,15 +533,14 @@ export function createValkeyIndex<
   async function publish(arg: ValkeyIndexRef<T, R> & { message: string }) {
     const pipeline = valkey.multi();
     if ("pkey" in arg) {
-      _publish_pkey(pipeline, arg);
+      await _publish_pkey(pipeline, arg);
     } else if ("fkey" in arg && "relation" in arg) {
       const pkeys = await _pkeys(arg);
       if (!pkeys) {
         return;
       }
-      const pipeline = valkey.multi();
       for (const pkey of pkeys) {
-        _publish_pkey(pipeline, { pkey, message: arg.message });
+        await _publish_pkey(pipeline, { pkey, message: arg.message });
       }
     } else {
       throw TypeError(

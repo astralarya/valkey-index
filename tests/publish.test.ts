@@ -27,7 +27,7 @@ const publishIndex = createValkeyIndex(
   },
 );
 
-test("Subscription publish", async () => {
+test("Publish", async () => {
   const subscribe1 = publishIndex.subscribe({ pkey: 1 });
   const subscribe2 = publishIndex.subscribe({
     fkey: 2,
@@ -42,17 +42,17 @@ test("Subscription publish", async () => {
   const next2_1 = subscribe2.next();
   const next3_1 = subscribe3_1.next();
 
+  await publishIndex.set({
+    pkey: 1,
+    input: { foo: "ababa", bar: 2 },
+  });
+
   setTimeout(async () => {
     await publishIndex.publish({
       pkey: 1,
       message: "hello",
     });
-  }, 1);
-
-  await publishIndex.set({
-    pkey: 1,
-    input: { foo: "ababa", bar: 2 },
-  });
+  }, 10);
 
   expect(
     await Promise.all([
