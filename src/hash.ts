@@ -25,7 +25,7 @@ export type ValkeyHashIndexProps<
   exemplar: T | 0;
   relations: R[];
   functions?: F;
-} & Partial<ValkeyHashIndexHandlers<T>>;
+} & Partial<ValkeyHashIndexHandlers<T, R>>;
 
 export type ValkeyHashGetter<T, R extends keyof T> = {
   (arg: { pkey: KeyPart; ttl?: Date | number; message?: string }): Promise<
@@ -60,24 +60,28 @@ export type ValkeyHashIndexOps<T, R extends keyof T> = {
 };
 
 export type ValkeyHashGetHandler<T> = (
-  valkey: Redis,
+  ctx: { valkey: Redis },
   arg: { key: string },
 ) => Promise<T | undefined>;
 
-export type ValkeyHashSetHandler<T> = (
-  pipeline: ChainableCommander,
+export type ValkeyHashSetHandler<T, R extends keyof T> = (
+  ctx: ValkeyIndexerReturn<T, R> & {
+    pipeline: ChainableCommander;
+  },
   arg: { key: string; input: T },
 ) => Promise<void>;
 
-export type ValkeyHashUpdateHandler<T> = (
-  pipeline: ChainableCommander,
+export type ValkeyHashUpdateHandler<T, R extends keyof T> = (
+  ctx: ValkeyIndexerReturn<T, R> & {
+    pipeline: ChainableCommander;
+  },
   arg: { key: string; input: Partial<T> },
 ) => Promise<void>;
 
-export type ValkeyHashIndexHandlers<T> = {
+export type ValkeyHashIndexHandlers<T, R extends keyof T> = {
   get: ValkeyHashGetHandler<T>;
-  set: ValkeyHashSetHandler<T>;
-  update: ValkeyHashUpdateHandler<T>;
+  set: ValkeyHashSetHandler<T, R>;
+  update: ValkeyHashUpdateHandler<T, R>;
 };
 
 export type ValkeyHashIndexInterface<
@@ -121,7 +125,7 @@ export function ValkeyHashIndex<
   }
 
   async function getRelations({ pkey }: { pkey: KeyPart }) {
-    const value = await get_(valkey, { key: key({ pkey }) });
+    const value = await get_({ valkey }, { key: key({ pkey }) });
     return value ? related(value) : ({} as ValkeyIndexRelations<T, R>);
   }
 
@@ -143,7 +147,7 @@ export function ValkeyHashIndex<
     ttl?: Date | number;
     message?: string;
   }) {
-    const value = await get_(valkey, { key: key({ pkey }) });
+    const value = await get_({ valkey }, { key: key({ pkey }) });
     const pipeline = valkey.multi();
     await touch(pipeline, { pkey, value, ttl: ttl_, message });
     await pipeline.exec();
@@ -200,14 +204,17 @@ export function ValkeyHashIndex<
     message?: string;
   }) {
     const key_ = key({ pkey });
-    const curr_value = await get_(valkey, { key: key_ });
+    const curr_value = await get_({ valkey }, { key: key_ });
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
     const pipeline = valkey.multi();
-    await set_(pipeline, {
-      key: key_,
-      input,
-    });
+    await set_(
+      { ...indexer, pipeline },
+      {
+        key: key_,
+        input,
+      },
+    );
     await touch(pipeline, { pkey, ttl: ttl_, message, curr, next });
     await pipeline.exec();
   }
@@ -224,14 +231,17 @@ export function ValkeyHashIndex<
     message?: string;
   }) {
     const key_ = key({ pkey });
-    const curr_value = await get_(valkey, { key: key_ });
+    const curr_value = await get_({ valkey }, { key: key_ });
     const curr = curr_value ? related(curr_value) : undefined;
     const next = related(input);
     const pipeline = valkey.multi();
-    const value = await update_(pipeline, {
-      key: key_,
-      input,
-    });
+    await update_(
+      { ...indexer, pipeline },
+      {
+        key: key_,
+        input,
+      },
+    );
     await touch(pipeline, { pkey, ttl: ttl_, message, curr, next });
     await pipeline.exec();
     return;
@@ -250,24 +260,31 @@ export function ValkeyHashIndex<
   };
 }
 
-export function getHash<T, R extends keyof T>({
+export function getHash<T>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}) {
-  return async function get(valkey: Redis, { key }: { key: string }) {
+  return async function get(
+    { valkey }: { valkey: Redis },
+    { key }: { key: string },
+  ) {
     const value = await valkey.hgetall(key);
     return convert(value);
   };
 }
 
-export function setHash<T>({
+export function setHash<T, R extends keyof T>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
 } = {}) {
   return async function set(
-    pipeline: ChainableCommander,
+    {
+      pipeline,
+    }: ValkeyIndexerReturn<T, R> & {
+      pipeline: ChainableCommander;
+    },
     { key, input }: { key: string; input: T },
   ) {
     if (input === undefined) {
@@ -282,13 +299,17 @@ export function setHash<T>({
   };
 }
 
-export function updateHash<T>({
+export function updateHash<T, R extends keyof T>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<Partial<T>>;
 } = {}) {
   return async function update(
-    pipeline: ChainableCommander,
+    {
+      pipeline,
+    }: ValkeyIndexerReturn<T, R> & {
+      pipeline: ChainableCommander;
+    },
     { key, input }: { key: string; input: Partial<T> },
   ) {
     const value = convert(input);
