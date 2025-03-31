@@ -510,11 +510,10 @@ export function createValkeyIndex<
       message: string;
     },
   ) {
-    const key = _key({ pkey });
     const value = await _get_pkey({ pkey });
     const relations = value && related ? related(value) : undefined;
     const event = stringifyEvent({ pkey }, message);
-    pipeline.publish(key, event);
+    pipeline.publish(_key({ pkey }), event);
     if (relations) {
       for (const [relation, fkey] of Object.entries(relations) as [
         R,
@@ -522,12 +521,10 @@ export function createValkeyIndex<
       ][]) {
         if (Array.isArray(fkey)) {
           fkey.forEach((item) => {
-            const related_key = _key({ fkey: item, relation });
-            pipeline.publish(related_key, event);
+            pipeline.publish(_key({ fkey: item, relation }), event);
           });
         } else if (fkey !== undefined) {
-          const related_key = _key({ fkey, relation });
-          pipeline.publish(related_key, event);
+          pipeline.publish(_key({ fkey, relation }), event);
         }
       }
     }
