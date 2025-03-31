@@ -48,7 +48,7 @@ export function ValkeyStreamIndex<
     maxlen,
   });
 
-  function append(arg: AppendStreamArg<T>) {
+  async function append(arg: AppendStreamArg<T>) {
     append_(indexer, arg);
   }
 
