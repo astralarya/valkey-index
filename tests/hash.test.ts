@@ -1,36 +1,23 @@
-import {
-  createValkeyIndex,
-  getHash,
-  setHash,
-  updateHash,
-  type KeyPart,
-} from "../src";
+import { ValkeyHashIndex, type KeyPart } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
 
-const hashIndex = createValkeyIndex(
-  {
-    valkey,
-    name: "hash",
-    exemplar: 0 as TestObject | 0,
-    relations: [],
-    get: getHash(),
-    set: setHash(),
-    update: updateHash(),
+const hashIndex = ValkeyHashIndex<TestObject, never>({
+  valkey,
+  name: "hash",
+});
+const funcs = {
+  use: async ({ pkey }: { pkey: KeyPart }) => {
+    const val = await hashIndex.get({ pkey });
+    if (val?.baz === undefined) {
+      return;
+    }
+    const next = val.baz + 1;
+    await hashIndex.update({ pkey, input: { baz: next } });
+    return next;
   },
-  {
-    use: async ({ get, update }, { pkey }: { pkey: KeyPart }) => {
-      const val = await get!({ pkey });
-      if (val?.baz === undefined) {
-        return;
-      }
-      const next = val.baz + 1;
-      await update!({ pkey, input: { baz: next } });
-      return next;
-    },
-  },
-);
+};
 
 test("Hash", async () => {
   expect(await hashIndex.get({ pkey: 1 })).toEqual({});
@@ -96,7 +83,7 @@ test("Hash", async () => {
     baz: 11,
   });
 
-  expect(await hashIndex.f.use({ pkey: 1 })).toEqual(undefined);
+  expect(await funcs.use({ pkey: 1 })).toEqual(undefined);
   expect(await hashIndex.get({ pkey: 1 })).toEqual({ foo: "lalala", bar: 0 });
   expect(await hashIndex.get({ pkey: 2 })).toEqual({
     foo: "falala",
@@ -116,7 +103,7 @@ test("Hash", async () => {
     baz: 11,
   });
 
-  expect(await hashIndex.f.use({ pkey: 1 })).toEqual(1);
+  expect(await funcs.use({ pkey: 1 })).toEqual(1);
   expect(await hashIndex.get({ pkey: 1 })).toEqual({
     foo: "lalala",
     bar: 0,
