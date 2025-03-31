@@ -1,4 +1,10 @@
-import { type KeyPart, type ValkeyIndexerReturn } from ".";
+import { bindHandlers, type ValkeyIndexSpec } from "./handler";
+import {
+  ValkeyIndexer,
+  type KeyPart,
+  type ValkeyIndexerProps,
+  type ValkeyIndexerReturn,
+} from "./indexer";
 import {
   assembleRecord,
   DEFAULT_DESERIALIZER,
@@ -7,20 +13,82 @@ import {
   type ValueSerializer,
 } from "./serde";
 
-export function appendStream<T, R extends keyof T>({
+export type ValkeyStreamIndexProps<
+  T,
+  F extends ValkeyIndexSpec<ValkeyStreamIndexOps<T>>,
+> = ValkeyIndexerProps<T, never> & {
+  exemplar: T | 0;
+  functions?: F;
+  serializer?: ValueSerializer<T>;
+  deserializer?: ValueDeserializer<T>;
+};
+
+export type ValkeyStreamIndexOps<T> = {};
+
+export function ValkeyStreamIndex<
+  T,
+  F extends ValkeyIndexSpec<ValkeyStreamIndexOps<T>>,
+>({
+  valkey,
+  name,
+  ttl,
+  maxlen,
+  functions = {} as F,
+  serializer,
+  deserializer,
+}: ValkeyStreamIndexProps<T, F>) {
+  const append_ = appendStream({ convert: serializer });
+  const range_ = rangeStream({ convert: deserializer });
+  const read_ = readStream({ convert: deserializer });
+
+  const indexer = ValkeyIndexer<T, never>({
+    valkey,
+    name,
+    ttl,
+    maxlen,
+  });
+
+  function append(arg: AppendStreamArg<T>) {
+    append_(indexer, arg);
+  }
+
+  async function range(arg: RangeStreamArg) {
+    return range_(indexer, arg);
+  }
+
+  async function read(arg: ReadStreamArg) {
+    return read_(indexer, arg);
+  }
+
+  const ops = {
+    ...indexer,
+    append,
+    range,
+    read,
+  };
+
+  return {
+    ...ops,
+    f: bindHandlers(ops, functions),
+  };
+}
+
+export type AppendStreamArg<T> = {
+  pkey: KeyPart;
+  input: T;
+  id?: string;
+  ttl?: number;
+  message?: string;
+};
+
+export function appendStream<T>({
   convert = DEFAULT_SERIALIZER,
 }: {
   convert?: ValueSerializer<T>;
 } = {}) {
   return async function append(
-    { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, R>,
-    {
-      pkey,
-      input,
-      id,
-      ttl: ttl_,
-      message,
-    }: { pkey: KeyPart; input: T; id: string; ttl?: number; message: string },
+    { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
+    { pkey, input, id, ttl: ttl_, message }: AppendStreamArg<T>,
   ) {
     const key = _key({ pkey });
     const value = input && convert(input);
@@ -50,26 +118,22 @@ export function appendStream<T, R extends keyof T>({
   };
 }
 
-export function rangeStream<T, R extends keyof T>({
+type RangeStreamArg = {
+  pkey: KeyPart;
+  start?: string;
+  stop?: string;
+  ttl?: number;
+  message?: string;
+};
+
+export function rangeStream<T>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}) {
   return async function range(
-    { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, R>,
-    {
-      pkey,
-      start,
-      stop,
-      ttl: ttl_,
-      message,
-    }: {
-      pkey: KeyPart;
-      start?: string;
-      stop?: string;
-      ttl?: number;
-      message: string;
-    },
+    { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
+    { pkey, start, stop, ttl: ttl_, message }: RangeStreamArg,
   ) {
     const key = _key({ pkey });
     const pipeline = valkey.multi();
@@ -93,38 +157,32 @@ export function rangeStream<T, R extends keyof T>({
   };
 }
 
-export type StreamItem<T> = {
+export type ValkeyStreamItem<T> = {
   id: string;
   data: T;
 };
 
+type ReadStreamArg = {
+  pkey: KeyPart;
+  count?: number;
+  block?: number;
+  lastId?: string;
+  signal?: AbortSignal;
+  ttl?: number;
+  message?: string;
+};
+
 // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
 // until then this leaks connections
-export function readStream<T, R extends keyof T>({
+export function readStream<T>({
   convert = DEFAULT_DESERIALIZER,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}) {
   return async function* read(
-    ops: ValkeyIndexerReturn<T, R>,
-    {
-      pkey,
-      count,
-      block,
-      lastId,
-      signal,
-      ttl: ttl_,
-      message,
-    }: {
-      pkey: KeyPart;
-      count?: number;
-      block?: number;
-      lastId?: string;
-      signal?: AbortSignal;
-      ttl?: number;
-      message: string;
-    },
-  ): AsyncGenerator<StreamItem<T | undefined>> {
+    ops: ValkeyIndexerReturn<T, never>,
+    { pkey, count, block, lastId, signal, ttl: ttl_, message }: ReadStreamArg,
+  ): AsyncGenerator<ValkeyStreamItem<T | undefined>> {
     const { valkey, key: _key, touch, ttl = null, maxlen = null } = ops;
     const key = _key({ pkey });
     const pipeline = valkey.multi();

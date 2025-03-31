@@ -1,5 +1,4 @@
 import type Redis from "iovalkey";
-import { type KeyPart } from ".";
 import {
   DEFAULT_SERIALIZER,
   DEFAULT_DESERIALIZER,
@@ -7,6 +6,7 @@ import {
   type ValueDeserializer,
 } from "./serde";
 import {
+  type KeyPart,
   validateValkeyName,
   ValkeyIndexer,
   type ValkeyIndexerProps,

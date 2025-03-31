@@ -1,6 +1,6 @@
 import {
   appendStream,
-  createValkeyIndex,
+  ValkeyStreamIndex,
   rangeStream,
   readStream,
 } from "../src";
@@ -8,19 +8,11 @@ import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
 
-const streamIndex = createValkeyIndex(
-  {
-    valkey,
-    name: "stream",
-    exemplar: 0 as TestObject | 0,
-    relations: [],
-  },
-  {
-    append: appendStream(),
-    range: rangeStream(),
-    read: readStream(),
-  },
-);
+const streamIndex = ValkeyStreamIndex({
+  valkey,
+  name: "stream",
+  exemplar: 0 as TestObject | 0,
+});
 
 test("Stream", async () => {
   expect(await streamIndex.range({ pkey: 1 })).toEqual([]);
