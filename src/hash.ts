@@ -66,16 +66,12 @@ export type ValkeyHashGetHandler<T> = (
 ) => Promise<T | undefined>;
 
 export type ValkeyHashSetHandler<T, R extends keyof T> = (
-  ctx: ValkeyIndexerReturn<T, R> & {
-    pipeline: ChainableCommander;
-  },
+  ctx: ValkeyIndexerContext<T, R>,
   arg: { key: string; input: T },
 ) => Promise<void>;
 
 export type ValkeyHashUpdateHandler<T, R extends keyof T> = (
-  ctx: ValkeyIndexerReturn<T, R> & {
-    pipeline: ChainableCommander;
-  },
+  ctx: ValkeyIndexerContext<T, R>,
   arg: { key: string; input: Partial<T> },
 ) => Promise<void>;
 

@@ -19,11 +19,49 @@ export type ValkeyStreamIndexProps<
 > = ValkeyIndexerProps<T, never> & {
   exemplar: T | 0;
   functions?: F;
-  serializer?: ValueSerializer<T>;
-  deserializer?: ValueDeserializer<T>;
+} & Partial<ValkeyStreamIndexHandlers<T>>;
+
+export type ValkeyStreamAppender<T> = (
+  arg: AppendStreamArg<T>,
+) => Promise<void>;
+
+export type ValkeyStreamRanger<T> = (
+  arg: RangeStreamArg,
+) => Promise<ValkeyStreamItem<T>[]>;
+
+export type ValkeyStreamReader<T> = (
+  arg: ReadStreamArg,
+) => Promise<AsyncGenerator<ValkeyStreamItem<T | undefined>>>;
+
+export type ValkeyStreamIndexOps<T> = {
+  append: ValkeyStreamAppender<T>;
+  range: ValkeyStreamRanger<T>;
+  read: ValkeyStreamReader<T>;
 };
 
-export type ValkeyStreamIndexOps<T> = {};
+export type ValkeyStreamAppendHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: AppendStreamArg<T>,
+) => Promise<void>;
+
+export type ValkeyStreamRangeHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: RangeStreamArg,
+) => Promise<ValkeyStreamItem<T>[]>;
+
+export type ValkeyStreamReadHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: ReadStreamArg,
+) => Promise<AsyncGenerator<ValkeyStreamItem<T | undefined>>>;
+
+export type ValkeyStreamIndexHandlers<T> = {
+  append: ValkeyStreamAppendHandler<T>;
+  range: ValkeyStreamRangeHandler<T>;
+  read: ValkeyStreamReadHandler<T>;
+};
+
+export type ValkeyStreamIndexInterface<T> = ValkeyIndexerReturn<T, never> &
+  ValkeyStreamIndexOps<T>;
 
 export function ValkeyStreamIndex<
   T,
@@ -34,12 +72,13 @@ export function ValkeyStreamIndex<
   ttl,
   maxlen,
   functions = {} as F,
-  serializer,
-  deserializer,
+  append: append__,
+  range: range__,
+  read: read__,
 }: ValkeyStreamIndexProps<T, F>) {
-  const append_ = appendStream({ convert: serializer });
-  const range_ = rangeStream({ convert: deserializer });
-  const read_ = readStream({ convert: deserializer });
+  const append_ = append__ || appendStream();
+  const range_ = range__ || rangeStream();
+  const read_ = read__ || readStream();
 
   const indexer = ValkeyIndexer<T, never>({
     valkey,
@@ -152,7 +191,7 @@ export function rangeStream<T>({
       return {
         id,
         data: convert(assembleRecord(fields)),
-      };
+      } as ValkeyStreamItem<T>;
     });
   };
 }
