@@ -31,16 +31,6 @@ export type ValkeyIndexRelations<T, R extends keyof T> = Record<
   KeyPart | KeyPart[] | undefined
 >;
 
-export type ValkeyIndexerProps<T, R extends keyof T> = {
-  valkey: Redis;
-  name: string;
-  ttl?: number;
-  maxlen?: number;
-  getRelations?: (ref: {
-    pkey: KeyPart;
-  }) => ValkeyIndexRelations<T, R> | Promise<ValkeyIndexRelations<T, R>>;
-};
-
 export type ValkeyIndexEvent<T, R extends keyof T> = {
   source: ValkeyIndexRef<T, R>;
   message: string;
@@ -53,13 +43,60 @@ export type ValkeyIndexPublish<T, R extends keyof T> =
       channel: ValkeyIndexRef<T, R>;
     };
 
+export type ValkeyIndexerProps<T, R extends keyof T> = {
+  valkey: Redis;
+  name: string;
+  ttl?: number;
+  maxlen?: number;
+  getRelations?: (ref: {
+    pkey: KeyPart;
+  }) => ValkeyIndexRelations<T, R> | Promise<ValkeyIndexRelations<T, R>>;
+};
+
+export type ValkeyIndexerReturn<T, R extends keyof T> = {
+  key: (ref: ValkeyIndexRef<T, R>) => string;
+  pkeys: (ref: ValkeyIndexRef<T, R>) => Promise<string[]>;
+  mapRelations: (
+    ref: {
+      pkey: KeyPart;
+    },
+    func: (ref: ValkeyIndexRef<T, R>) => unknown,
+  ) => Promise<void>;
+  publish: (
+    arg: ValkeyIndexPublish<T, R> & {
+      message: string;
+    },
+  ) => Promise<void>;
+  subscribe: ({
+    ref,
+    signal,
+    test,
+  }: {
+    ref: ValkeyIndexRef<T, R>;
+    signal?: AbortSignal;
+    test?: string | RegExp;
+  }) => AsyncGenerator<ValkeyIndexEvent<T, R>>;
+  touch: (
+    pipeline: ChainableCommander,
+    arg: {
+      pkey: KeyPart;
+      value?: Partial<T>;
+      ttl?: Date | number;
+      message?: string;
+      curr?: ValkeyIndexRelations<T, R>;
+      next?: ValkeyIndexRelations<T, R>;
+    },
+  ) => Promise<void>;
+  del: (arg: ValkeyIndexRef<T, R>) => Promise<void>;
+};
+
 export function ValkeyIndexer<T, R extends keyof T>({
   valkey,
   name,
   ttl,
   maxlen,
   getRelations,
-}: ValkeyIndexerProps<T, R>) {
+}: ValkeyIndexerProps<T, R>): ValkeyIndexerReturn<T, R> {
   validateValkeyName(name);
 
   function key(ref: ValkeyIndexRef<T, R>) {

@@ -9,31 +9,74 @@ import {
 import {
   ValkeyIndexer,
   type ValkeyIndexerProps,
+  type ValkeyIndexerReturn,
   type ValkeyIndexRef,
   type ValkeyIndexRelations,
 } from "./indexer";
 import type { ChainableCommander } from "iovalkey";
+import { bindHandlers, type ValkeyIndexSpec } from "./handler";
 
-export type ValkeyHashIndexProps<T, R extends keyof T> = ValkeyIndexerProps<
+export type ValkeyHashIndexProps<
   T,
-  R
-> & {
-  relations?: R[];
+  R extends keyof T,
+  F extends ValkeyIndexSpec<ValkeyHashIndexOps<T, R>>,
+> = ValkeyIndexerProps<T, R> & {
+  exemplar: T | 0;
+  relations: R[];
+  functions?: F;
   serializer?: ValueSerializer<T>;
   deserializer?: ValueDeserializer<T>;
   update_serializer?: ValueSerializer<Partial<T>>;
 };
 
-export function ValkeyHashIndex<T, R extends keyof T>({
+export type ValkeyHashIndexOps<T, R extends keyof T> = {
+  get: {
+    (arg: { pkey: KeyPart; ttl?: Date | number; message?: string }): Promise<
+      T | undefined
+    >;
+    (arg: {
+      relation: R;
+      fkey: KeyPart;
+      ttl?: Date | number;
+      message?: string;
+    }): Promise<Record<R, T | undefined>>;
+  };
+  set: (arg: {
+    pkey: KeyPart;
+    input: T;
+    ttl?: Date | number;
+    message?: string;
+  }) => Promise<void>;
+  update: (arg: {
+    pkey: KeyPart;
+    input: Partial<T>;
+    ttl?: Date | number;
+    message?: string;
+  }) => Promise<void>;
+};
+
+export type ValkeyHashIndexReturn<T, R extends keyof T> = ValkeyIndexerProps<
+  T,
+  R
+> &
+  ValkeyIndexerReturn<T, R> &
+  ValkeyHashIndexOps<T, R>;
+
+export function ValkeyHashIndex<
+  T,
+  R extends keyof T,
+  F extends ValkeyIndexSpec<ValkeyHashIndexOps<T, R>>,
+>({
   valkey,
   name,
   ttl,
   maxlen,
-  relations = [],
+  functions = {} as F,
+  relations,
   serializer = DEFAULT_SERIALIZER,
   deserializer = DEFAULT_DESERIALIZER,
   update_serializer = DEFAULT_SERIALIZER,
-}: ValkeyHashIndexProps<T, R>) {
+}: ValkeyHashIndexProps<T, R, F>) {
   const get_ = getHash({ convert: deserializer });
   const set_ = setHash({ convert: serializer });
   const update_ = updateHash({ convert: update_serializer });
@@ -168,7 +211,7 @@ export function ValkeyHashIndex<T, R extends keyof T>({
     return value;
   }
 
-  return {
+  const ops = {
     valkey,
     name,
     get,
@@ -178,6 +221,11 @@ export function ValkeyHashIndex<T, R extends keyof T>({
     subscribe,
     touch,
     del,
+  };
+
+  return {
+    ...ops,
+    f: bindHandlers(ops, functions),
   };
 }
 

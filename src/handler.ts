@@ -1,27 +1,36 @@
-export type ValkeyIndexHandler<O, A extends [], V> = (ops: O, ...args: A) => V;
+export type ValkeyIndexHandler<Ops, Args extends unknown[], Return> = (
+  ops: Ops,
+  ...args: Args
+) => Return;
 
-export type ValkeyIndexSpec = Record<
+export type ValkeyIndexSpec<Ops> = Record<
   string,
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  ValkeyIndexHandler<any, any, any>
+  ValkeyIndexHandler<Ops, any, any>
 >;
 
 export type ValkeyIndexFunction<
-  M extends ValkeyIndexSpec,
-  K extends keyof M,
-> = M[K] extends ValkeyIndexHandler<infer O, infer A, infer V>
-  ? (ops: O, ...arg: A) => V
+  Ops,
+  Spec extends ValkeyIndexSpec<Ops>,
+  Key extends keyof Spec,
+> = Spec[Key] extends ValkeyIndexHandler<Ops, infer Args, infer Return>
+  ? (...arg: Args) => Return
   : never;
 
-export type ValkeyIndexInterface<M extends ValkeyIndexSpec> = {
-  [K in keyof M]: ValkeyIndexFunction<M, K>;
+export type ValkeyIndexInterface<Ops, Spec extends ValkeyIndexSpec<Ops>> = {
+  [Key in keyof Spec]: ValkeyIndexFunction<Ops, Spec, Key>;
 };
 
-// const func = Object.entries(functions).reduce((prev, [key, val]) => {
-//   prev[key as keyof M] = ((
-//     arg: Parameters<ValkeyIndexFunction<T, R, M, typeof key>>[1],
-//   ) => {
-//     return val(ops, arg);
-//   }) as ValkeyIndexFunction<T, R, M, typeof key>;
-//   return prev;
-// }, {} as ValkeyIndexInterface<T, R, M>);
+export function bindHandlers<Ops, Spec extends ValkeyIndexSpec<Ops>>(
+  ops: Ops,
+  spec: Spec,
+) {
+  return Object.entries(spec).reduce((prev, [key, val]) => {
+    prev[key as keyof Spec] = ((
+      ...args: Parameters<ValkeyIndexFunction<Ops, Spec, typeof key>>
+    ) => {
+      return val(ops, ...args);
+    }) as ValkeyIndexFunction<Ops, Spec, typeof key>;
+    return prev;
+  }, {} as ValkeyIndexInterface<Ops, Spec>);
+}
