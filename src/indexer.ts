@@ -278,7 +278,8 @@ export function ValkeyIndexer<T, R extends keyof T>({
       pipeline.expire(key_, ttl);
     }
     if (message !== undefined) {
-      publish({ pkey, message });
+      const event = stringifyEvent({ pkey }, message);
+      pipeline.publish(key({ pkey }), event);
     }
     const rm = curr && next && diffRelations({ curr, next });
     if (rm) {
@@ -295,7 +296,8 @@ export function ValkeyIndexer<T, R extends keyof T>({
         }
       }
     }
-    const relations = next || (await getRelations?.({ pkey }));
+    const relations =
+      next !== undefined ? next : await getRelations?.({ pkey });
     if (relations) {
       for (const [relation, fkey] of Object.entries(relations) as [
         R,
