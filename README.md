@@ -16,7 +16,7 @@ Create an index:
 ```ts
 import Valkey from "iovalkey";
 import {
-  createValkeyIndex,
+  ValkeyHashIndex,
   getHash,
   setHash,
   updateHash,
@@ -30,7 +30,7 @@ type Session = {
   user_id: string,
 }
 
-const sessionIndex = createValkeyIndex(
+const sessionIndex = ValkeyHashIndex(
   {
     valkey,
     name: "session",
