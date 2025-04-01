@@ -13,6 +13,7 @@ import {
   type ValkeyIndexerProps,
   type ValkeyIndexerReturn,
   type ValkeyIndexRef,
+  ValkeyIndexRefError,
   type ValkeyIndexRelations,
 } from "./indexer";
 import { bindHandlers, type ValkeyIndexSpec } from "./handler";
@@ -202,7 +203,7 @@ export function ValkeyHashIndex<
         ),
       ) as Record<R, T | undefined>;
     }
-    throw TypeError("valkey-index: get() requires a pkey or relation and fkey");
+    throw new ValkeyIndexRefError("ValkeyHashIndex:get()");
   }
 
   async function set({

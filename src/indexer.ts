@@ -7,14 +7,6 @@ export const DEFAULT_MAXLEN = 8;
 
 export const VALKEY_INDEX_NAME_REGEX = /^[a-zA-Z0-9_./]+$/;
 
-export function validateValkeyName(name: string) {
-  if (!VALKEY_INDEX_NAME_REGEX.test(name)) {
-    throw TypeError(
-      "valkey-index: name may only contain alphanumeric, underscore, and dots",
-    );
-  }
-}
-
 export type KeyPart = string | number | symbol;
 
 export type ValkeyIndexRef<T, R extends keyof T> =
@@ -25,6 +17,18 @@ export type ValkeyIndexRef<T, R extends keyof T> =
       relation: R;
       fkey: KeyPart;
     };
+
+export type ValkeyIndexGlobalRef = {
+  index: string;
+} & (
+  | {
+      pkey: KeyPart;
+    }
+  | {
+      relation: KeyPart;
+      fkey: KeyPart;
+    }
+);
 
 export type ValkeyIndexRelations<T, R extends keyof T> = Record<
   R,
@@ -113,9 +117,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     } else if ("fkey" in ref && "relation" in ref) {
       return `${name}@${String(ref.relation)}:${String(ref.fkey)}`;
     }
-    throw TypeError(
-      "valkey-index: toKey() requires a pkey or fkey and relation",
-    );
+    throw new ValkeyIndexRefError("ValkeyIndexer:key()");
   }
 
   async function pkeys(ref: ValkeyIndexRef<T, R>) {
@@ -124,9 +126,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     } else if ("fkey" in ref && "relation" in ref) {
       return valkey.zrange(key(ref), 0, "-1");
     }
-    throw TypeError(
-      "valkey-index: pkeys() requires a pkey or fkey and relation",
-    );
+    throw new ValkeyIndexRefError("ValkeyIndexer:pkeys()");
   }
 
   async function mapRelations(
@@ -182,9 +182,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
         });
       }
     } else {
-      throw TypeError(
-        "valkey-index: publish() requires a pkey or fkey and relation or source and channel",
-      );
+      throw new ValkeyIndexRefError("ValkeyIndexer:publish()");
     }
     await pipeline.exec();
   }
@@ -367,18 +365,36 @@ export function ValkeyIndexer<T, R extends keyof T>({
   };
 }
 
-export function parseEvent<T, R extends keyof T>(data: string) {
-  return JSON.parse(data) as ValkeyIndexEvent<T, R>;
+export class ValkeyIndexRefError extends Error {
+  constructor(source: string, options?: ErrorOptions) {
+    const message = `Index references require a pkey or fkey and relation (source '${source}')`;
+    super(message, options);
+    this.name = "ValkeyIndexRefError";
+    this.message = message;
+  }
 }
 
-export function stringifyEvent<T, R extends keyof T>(
-  source: ValkeyIndexRef<T, R>,
-  message: string,
-) {
-  return JSON.stringify({
-    source,
-    message,
-  });
+export class ValkeyIndexNameError extends Error {
+  constructor(input: string, options?: ErrorOptions) {
+    const message = `Index and relation names may only use [a-zA-Z0-9_./] (input '${input}')`;
+    super(message, options);
+    this.name = "ValkeyIndexNameError";
+    this.message = message;
+  }
+}
+
+export class ValkeyIndexRefParseError extends Error {
+  constructor(message = "", options?: ErrorOptions) {
+    super(message, options);
+    this.name = "ValkeyIndexRefParseError";
+    this.message = message;
+  }
+}
+
+export function validateValkeyName(name: string) {
+  if (!VALKEY_INDEX_NAME_REGEX.test(name)) {
+    throw new ValkeyIndexNameError(name);
+  }
 }
 
 export function diffRelations<T, R extends keyof T>({
@@ -426,4 +442,67 @@ export function diffRelations<T, R extends keyof T>({
         ),
       ) as Record<R, KeyPart | KeyPart[] | undefined>)
     : undefined;
+}
+
+function splitOnce(input: string, sep: string) {
+  let idx = input.indexOf(sep);
+  if (idx === input.length - sep.length) {
+    throw new ValkeyIndexRefParseError(`Bad split (sep '${sep}')`);
+  }
+  return [input.slice(0, idx), input.slice(idx + sep.length)] as const;
+}
+
+export function parseRef(ref: string): ValkeyIndexGlobalRef {
+  try {
+    const [path, key] = splitOnce(ref, ":");
+    const [index, relation] = splitOnce(path, "@");
+    if (!key || !index) {
+      throw new ValkeyIndexRefParseError(
+        `Failed to parse index ref (parsing '${ref}')`,
+      );
+    }
+    if (relation) {
+      return {
+        index,
+        fkey: key,
+        relation,
+      };
+    } else {
+      return {
+        index,
+        pkey: key,
+      };
+    }
+  } catch (err) {
+    if (err instanceof ValkeyIndexRefParseError) {
+      throw new ValkeyIndexRefParseError(
+        `Failed to parse index ref (parsing '${ref}')`,
+        { cause: err },
+      );
+    } else {
+      throw err;
+    }
+  }
+}
+
+export function stringifyRef(ref: ValkeyIndexGlobalRef) {
+  if ("pkey" in ref) {
+    return `${ref.index}:${String(ref.pkey)}`;
+  } else if ("fkey" in ref && "relation" in ref) {
+    return `${ref.index}@${String(ref.relation)}:${String(ref.fkey)}`;
+  }
+}
+
+export function parseEvent<T, R extends keyof T>(data: string) {
+  return JSON.parse(data) as ValkeyIndexEvent<T, R>;
+}
+
+export function stringifyEvent<T, R extends keyof T>(
+  source: ValkeyIndexRef<T, R>,
+  message: string,
+) {
+  return JSON.stringify({
+    source,
+    message,
+  });
 }
