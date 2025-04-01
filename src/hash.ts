@@ -1,7 +1,7 @@
 import type Redis from "iovalkey";
 import {
-  DEFAULT_SERIALIZER,
-  DEFAULT_DESERIALIZER,
+  serializeRecord,
+  deserializeRecord,
   type ValueSerializer,
   type ValueDeserializer,
 } from "./serde";
@@ -274,7 +274,7 @@ export function ValkeyHashIndex<
 }
 
 export function getHash<T, R extends keyof T>({
-  convert = DEFAULT_DESERIALIZER,
+  convert = deserializeRecord,
 }: {
   convert?: ValueDeserializer<Partial<T>>;
 } = {}) {
@@ -302,7 +302,7 @@ export function getHash<T, R extends keyof T>({
 }
 
 export function setHash<T, R extends keyof T>({
-  convert = DEFAULT_SERIALIZER,
+  convert = serializeRecord,
 }: {
   convert?: ValueSerializer<T>;
 } = {}) {
@@ -323,7 +323,7 @@ export function setHash<T, R extends keyof T>({
 }
 
 export function updateHash<T, R extends keyof T>({
-  convert = DEFAULT_SERIALIZER,
+  convert = serializeRecord,
 }: {
   convert?: ValueSerializer<Partial<T>>;
 } = {}) {

@@ -8,7 +8,7 @@ export type ValueDeserializer<T> = (
   input: Record<string, string>,
 ) => T | undefined;
 
-export function DEFAULT_SERIALIZER<T>(input: T) {
+export function serializeRecord<T>(input: T) {
   if (!input) {
     return {};
   } else if (typeof input === "object") {
@@ -20,7 +20,7 @@ export function DEFAULT_SERIALIZER<T>(input: T) {
   }
 }
 
-export function DEFAULT_DESERIALIZER<T>(
+export function deserializeRecord<T>(
   input: Record<string, string | undefined>,
 ) {
   return Object.fromEntries(

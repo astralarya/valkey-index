@@ -6,8 +6,8 @@ import {
   type ValkeyIndexerReturn,
 } from "./indexer";
 import {
-  DEFAULT_DESERIALIZER,
-  DEFAULT_SERIALIZER,
+  deserializeRecord,
+  serializeRecord,
   type ValueDeserializer,
   type ValueSerializer,
 } from "./serde";
@@ -118,7 +118,7 @@ export type AppendStreamArg<T> = {
 };
 
 export function appendStream<T>({
-  convert = DEFAULT_SERIALIZER,
+  convert = serializeRecord,
 }: {
   convert?: ValueSerializer<T>;
 } = {}) {
@@ -163,7 +163,7 @@ type RangeStreamArg = {
 };
 
 export function rangeStream<T>({
-  convert = DEFAULT_DESERIALIZER,
+  convert = deserializeRecord,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}) {
@@ -211,7 +211,7 @@ type ReadStreamArg = {
 // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
 // until then this leaks connections
 export function readStream<T>({
-  convert = DEFAULT_DESERIALIZER,
+  convert = deserializeRecord,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}) {

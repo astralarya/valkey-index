@@ -6,8 +6,8 @@ import {
   type ValkeyIndexerReturn,
 } from "./indexer";
 import {
-  DEFAULT_DESERIALIZER,
-  DEFAULT_SERIALIZER,
+  deserializeRecord,
+  serializeRecord,
   type ValueDeserializer,
   type ValueSerializer,
 } from "./serde";
@@ -89,7 +89,7 @@ export function ValkeyStreamIndex<
 }
 
 export function pushList<T>({
-  convert = DEFAULT_SERIALIZER,
+  convert = serializeRecord,
 }: {
   convert?: ValueSerializer<T>;
 } = {}) {
@@ -102,7 +102,7 @@ export function pushList<T>({
 }
 
 export function popList<T>({
-  convert = DEFAULT_DESERIALIZER,
+  convert = deserializeRecord,
 }: {
   convert?: ValueDeserializer<T>;
 } = {}) {
