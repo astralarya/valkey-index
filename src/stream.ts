@@ -8,8 +8,8 @@ import {
 import {
   deserializeRecord,
   serializeRecord,
-  type ValueDeserializer,
-  type ValueSerializer,
+  type RecordDeserializer,
+  type RecordSerializer,
 } from "./serde";
 
 export type ValkeyStreamIndexProps<
@@ -120,7 +120,7 @@ export type AppendStreamArg<T> = {
 export function appendStream<T>({
   convert = serializeRecord,
 }: {
-  convert?: ValueSerializer<T>;
+  convert?: RecordSerializer<T>;
 } = {}) {
   return async function append(
     { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
@@ -165,7 +165,7 @@ type RangeStreamArg = {
 export function rangeStream<T>({
   convert = deserializeRecord,
 }: {
-  convert?: ValueDeserializer<T>;
+  convert?: RecordDeserializer<T>;
 } = {}) {
   return async function range(
     { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
@@ -213,7 +213,7 @@ type ReadStreamArg = {
 export function readStream<T>({
   convert = deserializeRecord,
 }: {
-  convert?: ValueDeserializer<T>;
+  convert?: RecordDeserializer<T>;
 } = {}) {
   return async function* read(
     ops: ValkeyIndexerReturn<T, never>,

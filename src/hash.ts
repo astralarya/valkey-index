@@ -2,8 +2,8 @@ import type Redis from "iovalkey";
 import {
   serializeRecord,
   deserializeRecord,
-  type ValueSerializer,
-  type ValueDeserializer,
+  type RecordSerializer,
+  type RecordDeserializer,
 } from "./serde";
 import {
   type KeyPart,
@@ -276,7 +276,7 @@ export function ValkeyHashIndex<
 export function getHash<T, R extends keyof T>({
   convert = deserializeRecord,
 }: {
-  convert?: ValueDeserializer<Partial<T>>;
+  convert?: RecordDeserializer<Partial<T>>;
 } = {}) {
   return async function get(
     { valkey }: { valkey: Redis },
@@ -304,7 +304,7 @@ export function getHash<T, R extends keyof T>({
 export function setHash<T, R extends keyof T>({
   convert = serializeRecord,
 }: {
-  convert?: ValueSerializer<T>;
+  convert?: RecordSerializer<T>;
 } = {}) {
   return async function set(
     { pipeline }: ValkeyIndexerContext<T, R>,
@@ -325,7 +325,7 @@ export function setHash<T, R extends keyof T>({
 export function updateHash<T, R extends keyof T>({
   convert = serializeRecord,
 }: {
-  convert?: ValueSerializer<Partial<T>>;
+  convert?: RecordSerializer<Partial<T>>;
 } = {}) {
   return async function update(
     { pipeline }: ValkeyIndexerContext<T, R>,
