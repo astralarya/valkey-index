@@ -20,6 +20,34 @@ export function deserializeField<T>(input: string) {
   return SuperJSON.parse(input) as T | undefined;
 }
 
+export function serializeRecordFactory<T>(
+  serializer: (x: T[keyof T]) => string,
+) {
+  return function serialize<T>(input: T) {
+    if (!input) {
+      return {};
+    } else if (typeof input === "object") {
+      return Object.fromEntries(
+        Object.entries(input).map(([key, val]) => {
+          return [key, serializer(val)];
+        }),
+      );
+    }
+  };
+}
+
+export function deserializeRecordFactory<T>(
+  deserializer: (x: string) => T[keyof T],
+) {
+  return function deserialize<T>(input: Record<string, string | undefined>) {
+    return Object.fromEntries(
+      Object.entries(input).map(([key, val]) => {
+        return [key, val ? deserializer(val) : val];
+      }),
+    ) as T;
+  };
+}
+
 export function serializeRecord<T>(input: T) {
   if (!input) {
     return {};
