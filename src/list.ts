@@ -6,10 +6,10 @@ import {
   type ValkeyIndexerReturn,
 } from "./indexer";
 import {
-  deserializeRecord,
-  serializeRecord,
-  type ValueDeserializer,
-  type ValueSerializer,
+  deserializeField,
+  serializeField,
+  type FieldDeserializer,
+  type FieldSerializer,
 } from "./serde";
 
 export type ValkeyListIndexProps<
@@ -20,9 +20,14 @@ export type ValkeyListIndexProps<
   functions?: F;
 } & Partial<ValkeyListIndexHandlers<T>>;
 
-export type ValkeyListPush<T> = (arg: { input: T }) => Promise<void>;
+export type ValkeyListPush<T> = (arg: {
+  pkey: KeyPart;
+  input: T;
+}) => Promise<void>;
 
-export type ValkeyListPop<T> = () => Promise<T | undefined>;
+export type ValkeyListPop<T> = (arg: {
+  pkey: KeyPart;
+}) => Promise<T | undefined>;
 
 export type ValkeyListIndexOps<T> = {
   push: ValkeyListPush<T>;
@@ -31,11 +36,12 @@ export type ValkeyListIndexOps<T> = {
 
 export type ValkeyListPushHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
-  arg: { input: T },
+  arg: { key: string; input: T },
 ) => Promise<void>;
 
 export type ValkeyListPopHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string },
 ) => Promise<T | undefined>;
 
 export type ValkeyListIndexHandlers<T> = {
@@ -68,12 +74,12 @@ export function ValkeyStreamIndex<
     maxlen,
   });
 
-  async function push({ input }: { input: T }) {
-    push_(indexer, { input });
+  async function push({ pkey, input }: { pkey: KeyPart; input: T }) {
+    push_(indexer, { key: indexer.key({ pkey }), input });
   }
 
-  async function pop() {
-    return pop_(indexer);
+  async function pop({ pkey }: { pkey: KeyPart }) {
+    return pop_(indexer, { key: indexer.key({ pkey }) });
   }
 
   const ops: ValkeyListIndexInterface<T> = {
@@ -89,24 +95,29 @@ export function ValkeyStreamIndex<
 }
 
 export function pushList<T>({
-  convert = serializeRecord,
+  convert = serializeField,
 }: {
-  convert?: ValueSerializer<T>;
+  convert?: FieldSerializer<T>;
 } = {}) {
   return async function push(
     { valkey }: ValkeyIndexerReturn<T, never>,
-    { input }: { input: T },
+    { key, input }: { key: string; input: T },
   ) {
+    await valkey.lpush(key, convert(input));
     return;
   };
 }
 
 export function popList<T>({
-  convert = deserializeRecord,
+  convert = deserializeField,
 }: {
-  convert?: ValueDeserializer<T>;
+  convert?: FieldDeserializer<T>;
 } = {}) {
-  return async function pop(ctx: ValkeyIndexerReturn<T, never>) {
-    return undefined;
+  return async function pop(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    { key }: { key: string },
+  ) {
+    const value = await valkey.lpop(key);
+    return value ? convert(value) : undefined;
   };
 }
