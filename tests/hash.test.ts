@@ -31,6 +31,14 @@ test("Hash", async () => {
     bar: 0,
     baz: 1,
   });
+  expect(await hashIndex.get({ pkey: 1, fields: ["foo", "bar"] })).toEqual({
+    foo: "ababa",
+    bar: 0,
+  });
+  expect(await hashIndex.get({ pkey: 1, fields: ["baz", "bar"] })).toEqual({
+    bar: 0,
+    baz: 1,
+  });
   expect(await hashIndex.get({ pkey: 2 })).toEqual({});
 
   await hashIndex.set({ pkey: 2, input: { foo: "falala", bar: 10, baz: 11 } });

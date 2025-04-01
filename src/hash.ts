@@ -15,7 +15,6 @@ import {
   type ValkeyIndexRef,
   type ValkeyIndexRelations,
 } from "./indexer";
-import type { ChainableCommander } from "iovalkey";
 import { bindHandlers, type ValkeyIndexSpec } from "./handler";
 
 export type ValkeyHashIndexProps<
@@ -29,12 +28,16 @@ export type ValkeyHashIndexProps<
 } & Partial<ValkeyHashIndexHandlers<T, R>>;
 
 export type ValkeyHashGetter<T, R extends keyof T> = {
-  (arg: { pkey: KeyPart; ttl?: Date | number; message?: string }): Promise<
-    T | undefined
-  >;
+  (arg: {
+    pkey: KeyPart;
+    fields?: (keyof T)[];
+    ttl?: Date | number;
+    message?: string;
+  }): Promise<T | undefined>;
   (arg: {
     relation: R;
     fkey: KeyPart;
+    fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
   }): Promise<Record<R, T | undefined>>;
@@ -62,8 +65,8 @@ export type ValkeyHashIndexOps<T, R extends keyof T> = {
 
 export type ValkeyHashGetHandler<T> = (
   ctx: { valkey: Redis },
-  arg: { key: string },
-) => Promise<T | undefined>;
+  arg: { key: string; fields?: (keyof T)[] },
+) => Promise<Partial<T> | undefined>;
 
 export type ValkeyHashSetHandler<T, R extends keyof T> = (
   ctx: ValkeyIndexerContext<T, R>,
@@ -122,7 +125,10 @@ export function ValkeyHashIndex<
   }
 
   async function getRelations({ pkey }: { pkey: KeyPart }) {
-    const value = await get_({ valkey }, { key: key({ pkey }) });
+    const value = await get_(
+      { valkey },
+      { key: key({ pkey }), fields: relations },
+    );
     return value ? related(value) : ({} as ValkeyIndexRelations<T, R>);
   }
 
@@ -137,14 +143,16 @@ export function ValkeyHashIndex<
 
   async function _get_pkey({
     pkey,
+    fields,
     ttl: ttl_,
     message,
   }: {
     pkey: KeyPart;
+    fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
   }) {
-    const value = await get_({ valkey }, { key: key({ pkey }) });
+    const value = await get_({ valkey }, { key: key({ pkey }), fields });
     const pipeline = valkey.multi();
     await touch(pipeline, { pkey, value, ttl: ttl_, message });
     await pipeline.exec();
@@ -153,6 +161,7 @@ export function ValkeyHashIndex<
 
   async function get(arg: {
     pkey: KeyPart;
+    fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
   }): Promise<T | undefined>;
@@ -160,12 +169,14 @@ export function ValkeyHashIndex<
   async function get(arg: {
     relation: R;
     fkey: KeyPart;
+    fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
   }): Promise<Record<R, T | undefined>>;
 
   async function get(
     arg: ValkeyIndexRef<T, R> & {
+      fields?: (keyof T)[];
       ttl?: Date | number;
       message?: string;
     },
@@ -180,7 +191,12 @@ export function ValkeyHashIndex<
           ).map(async (pkey) => {
             return [
               pkey,
-              await _get_pkey({ pkey, ttl: arg.ttl, message: arg.message }),
+              await _get_pkey({
+                pkey,
+                fields: arg.fields,
+                ttl: arg.ttl,
+                message: arg.message,
+              }),
             ] as const;
           }),
         ),
@@ -257,17 +273,31 @@ export function ValkeyHashIndex<
   };
 }
 
-export function getHash<T>({
+export function getHash<T, R extends keyof T>({
   convert = DEFAULT_DESERIALIZER,
 }: {
-  convert?: ValueDeserializer<T>;
+  convert?: ValueDeserializer<Partial<T>>;
 } = {}) {
   return async function get(
     { valkey }: { valkey: Redis },
-    { key }: { key: string },
+    { key, fields }: { key: string; fields?: R[] },
   ) {
-    const value = await valkey.hgetall(key);
-    return convert(value);
+    if (fields !== undefined) {
+      const pipeline = valkey.multi();
+      for (const field of fields) {
+        pipeline.hget(key, String(field));
+      }
+      const results = await pipeline.exec();
+      const value = Object.fromEntries(
+        results?.map(([_, result], idx) => {
+          return [fields[idx], result] as const;
+        }) ?? [],
+      );
+      return convert(value);
+    } else {
+      const value = await valkey.hgetall(key);
+      return convert(value);
+    }
   };
 }
 
