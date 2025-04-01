@@ -20,6 +20,10 @@ export type ValkeyListIndexProps<
   functions?: F;
 } & Partial<ValkeyListIndexHandlers<T>>;
 
+export type ValkeyListLen = (arg: {
+  pkey: KeyPart;
+}) => Promise<number | undefined>;
+
 export type ValkeyListPush<T> = (arg: {
   pkey: KeyPart;
   input: T;
@@ -38,12 +42,24 @@ export type ValkeyListRpop<T> = (arg: {
   pkey: KeyPart;
 }) => Promise<T | undefined>;
 
+export type ValkeyListIndex<T> = (arg: {
+  pkey: KeyPart;
+  index: number;
+}) => Promise<T | null>;
+
 export type ValkeyListIndexOps<T> = {
+  len: ValkeyListLen;
   push: ValkeyListPush<T>;
   pop: ValkeyListPop<T>;
   rpush: ValkeyListRpush<T>;
   rpop: ValkeyListRpop<T>;
+  index: ValkeyListIndex<T>;
 };
+
+export type ValkeyListLenHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string },
+) => Promise<number | undefined>;
 
 export type ValkeyListPushHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -65,11 +81,18 @@ export type ValkeyListRpopHandler<T> = (
   arg: { key: string },
 ) => Promise<T | undefined>;
 
+export type ValkeyListIndexHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string; index: number },
+) => Promise<T | null>;
+
 export type ValkeyListIndexHandlers<T> = {
+  len: ValkeyListLenHandler<T>;
   push: ValkeyListPushHandler<T>;
   pop: ValkeyListPopHandler<T>;
   rpush: ValkeyListRpushHandler<T>;
   rpop: ValkeyListRpopHandler<T>;
+  index: ValkeyListIndexHandler<T>;
 };
 
 export type ValkeyListIndexInterface<T> = ValkeyIndexerReturn<T, never> &
@@ -84,15 +107,19 @@ export function ValkeyStreamIndex<
   ttl,
   maxlen,
   functions = {} as F,
+  len: len__,
   push: push__,
   pop: pop__,
   rpush: rpush__,
   rpop: rpop__,
+  index: index__,
 }: ValkeyListIndexProps<T, F>) {
+  const len_ = len__ || lenList();
   const push_ = push__ || pushList();
   const pop_ = pop__ || popList();
   const rpush_ = rpush__ || rpushList();
   const rpop_ = rpop__ || rpopList();
+  const index_ = index__ || indexList();
 
   const indexer = ValkeyIndexer<T, never>({
     valkey,
@@ -100,6 +127,10 @@ export function ValkeyStreamIndex<
     ttl,
     maxlen,
   });
+
+  async function len({ pkey }: { pkey: KeyPart }) {
+    return len_(indexer, { key: indexer.key({ pkey }) });
+  }
 
   async function push({ pkey, input }: { pkey: KeyPart; input: T }) {
     push_(indexer, { key: indexer.key({ pkey }), input });
@@ -117,17 +148,32 @@ export function ValkeyStreamIndex<
     return rpop_(indexer, { key: indexer.key({ pkey }) });
   }
 
+  async function index({ pkey, index }: { pkey: KeyPart; index: number }) {
+    return index_(indexer, { key: indexer.key({ pkey }), index });
+  }
+
   const ops: ValkeyListIndexInterface<T> = {
     ...indexer,
+    len,
     push,
     pop,
     rpush,
     rpop,
+    index,
   };
 
   return {
     ...ops,
     f: bindHandlers(ops, functions),
+  };
+}
+
+export function lenList<T>() {
+  return async function len(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    { key }: { key: string },
+  ) {
+    return await valkey.llen(key);
   };
 }
 
@@ -184,5 +230,19 @@ export function rpopList<T>({
   ) {
     const value = await valkey.rpop(key);
     return value ? convert(value) : undefined;
+  };
+}
+
+export function indexList<T>({
+  convert = deserializeField,
+}: {
+  convert?: FieldDeserializer<T>;
+} = {}) {
+  return async function index(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    { key, index }: { key: string; index: number },
+  ) {
+    const value = await valkey.lindex(key, index);
+    return value ? convert(value) : null;
   };
 }

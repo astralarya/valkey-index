@@ -2,22 +2,20 @@ import SuperJSON from "superjson";
 
 export type FieldSerializer<T> = (input: T) => string;
 
-export type FieldDeserializer<T> = (input: string) => T | undefined;
+export type FieldDeserializer<T> = (input: string) => T;
 
 export type RecordSerializer<T> = (
   input: T,
 ) => Record<string, string | number | undefined> | undefined;
 
-export type RecordDeserializer<T> = (
-  input: Record<string, string>,
-) => T | undefined;
+export type RecordDeserializer<T> = (input: Record<string, string>) => T;
 
 export function serializeField<T>(input: T) {
   return SuperJSON.stringify(input);
 }
 
 export function deserializeField<T>(input: string) {
-  return SuperJSON.parse(input) as T | undefined;
+  return SuperJSON.parse(input) as T;
 }
 
 export function serializeRecordFactory<T>(
