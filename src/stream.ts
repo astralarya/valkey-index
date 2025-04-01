@@ -21,22 +21,20 @@ export type ValkeyStreamIndexProps<
   functions?: F;
 } & Partial<ValkeyStreamIndexHandlers<T>>;
 
-export type ValkeyStreamAppender<T> = (
-  arg: AppendStreamArg<T>,
-) => Promise<void>;
+export type ValkeyStreamAppend<T> = (arg: AppendStreamArg<T>) => Promise<void>;
 
-export type ValkeyStreamRanger<T> = (
+export type ValkeyStreamRange<T> = (
   arg: RangeStreamArg,
 ) => Promise<ValkeyStreamItem<T>[]>;
 
-export type ValkeyStreamReader<T> = (
+export type ValkeyStreamRead<T> = (
   arg: ReadStreamArg,
 ) => Promise<AsyncGenerator<ValkeyStreamItem<T | undefined>>>;
 
 export type ValkeyStreamIndexOps<T> = {
-  append: ValkeyStreamAppender<T>;
-  range: ValkeyStreamRanger<T>;
-  read: ValkeyStreamReader<T>;
+  append: ValkeyStreamAppend<T>;
+  range: ValkeyStreamRange<T>;
+  read: ValkeyStreamRead<T>;
 };
 
 export type ValkeyStreamAppendHandler<T> = (

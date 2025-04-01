@@ -27,7 +27,7 @@ export type ValkeyHashIndexProps<
   functions?: F;
 } & Partial<ValkeyHashIndexHandlers<T, R>>;
 
-export type ValkeyHashGetter<T, R extends keyof T> = {
+export type ValkeyHashGet<T, R extends keyof T> = {
   (arg: {
     pkey: KeyPart;
     fields?: (keyof T)[];
@@ -43,14 +43,14 @@ export type ValkeyHashGetter<T, R extends keyof T> = {
   }): Promise<Record<R, T | undefined>>;
 };
 
-export type ValkeyHashSetter<T> = (arg: {
+export type ValkeyHashSet<T> = (arg: {
   pkey: KeyPart;
   input: T;
   ttl?: Date | number;
   message?: string;
 }) => Promise<void>;
 
-export type ValkeyHashUpdater<T> = (arg: {
+export type ValkeyHashUpdate<T> = (arg: {
   pkey: KeyPart;
   input: Partial<T>;
   ttl?: Date | number;
@@ -58,9 +58,9 @@ export type ValkeyHashUpdater<T> = (arg: {
 }) => Promise<void>;
 
 export type ValkeyHashIndexOps<T, R extends keyof T> = {
-  get: ValkeyHashGetter<T, R>;
-  set: ValkeyHashSetter<T>;
-  update: ValkeyHashUpdater<T>;
+  get: ValkeyHashGet<T, R>;
+  set: ValkeyHashSet<T>;
+  update: ValkeyHashUpdate<T>;
 };
 
 export type ValkeyHashGetHandler<T> = (

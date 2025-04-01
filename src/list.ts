@@ -21,13 +21,13 @@ export type ValkeyListIndexProps<
   functions?: F;
 } & Partial<ValkeyListIndexHandlers<T>>;
 
-export type ValkeyListPusher<T> = (arg: { input: T }) => Promise<void>;
+export type ValkeyListPush<T> = (arg: { input: T }) => Promise<void>;
 
-export type ValkeyListPopper<T> = () => Promise<T | undefined>;
+export type ValkeyListPop<T> = () => Promise<T | undefined>;
 
 export type ValkeyListIndexOps<T> = {
-  push: ValkeyListPusher<T>;
-  pop: ValkeyListPopper<T>;
+  push: ValkeyListPush<T>;
+  pop: ValkeyListPop<T>;
 };
 
 export type ValkeyListPushHandler<T> = (
