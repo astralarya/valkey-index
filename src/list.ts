@@ -29,9 +29,20 @@ export type ValkeyListPop<T> = (arg: {
   pkey: KeyPart;
 }) => Promise<T | undefined>;
 
+export type ValkeyListRpush<T> = (arg: {
+  pkey: KeyPart;
+  input: T;
+}) => Promise<void>;
+
+export type ValkeyListRpop<T> = (arg: {
+  pkey: KeyPart;
+}) => Promise<T | undefined>;
+
 export type ValkeyListIndexOps<T> = {
   push: ValkeyListPush<T>;
   pop: ValkeyListPop<T>;
+  rpush: ValkeyListRpush<T>;
+  rpop: ValkeyListRpop<T>;
 };
 
 export type ValkeyListPushHandler<T> = (
@@ -44,9 +55,21 @@ export type ValkeyListPopHandler<T> = (
   arg: { key: string },
 ) => Promise<T | undefined>;
 
+export type ValkeyListRpushHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string; input: T },
+) => Promise<void>;
+
+export type ValkeyListRpopHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string },
+) => Promise<T | undefined>;
+
 export type ValkeyListIndexHandlers<T> = {
   push: ValkeyListPushHandler<T>;
   pop: ValkeyListPopHandler<T>;
+  rpush: ValkeyListRpushHandler<T>;
+  rpop: ValkeyListRpopHandler<T>;
 };
 
 export type ValkeyListIndexInterface<T> = ValkeyIndexerReturn<T, never> &
@@ -63,9 +86,13 @@ export function ValkeyStreamIndex<
   functions = {} as F,
   push: push__,
   pop: pop__,
+  rpush: rpush__,
+  rpop: rpop__,
 }: ValkeyListIndexProps<T, F>) {
   const push_ = push__ || pushList();
   const pop_ = pop__ || popList();
+  const rpush_ = rpush__ || rpushList();
+  const rpop_ = rpop__ || rpopList();
 
   const indexer = ValkeyIndexer<T, never>({
     valkey,
@@ -82,10 +109,20 @@ export function ValkeyStreamIndex<
     return pop_(indexer, { key: indexer.key({ pkey }) });
   }
 
+  async function rpush({ pkey, input }: { pkey: KeyPart; input: T }) {
+    rpush_(indexer, { key: indexer.key({ pkey }), input });
+  }
+
+  async function rpop({ pkey }: { pkey: KeyPart }) {
+    return rpop_(indexer, { key: indexer.key({ pkey }) });
+  }
+
   const ops: ValkeyListIndexInterface<T> = {
     ...indexer,
     push,
     pop,
+    rpush,
+    rpop,
   };
 
   return {
@@ -118,6 +155,34 @@ export function popList<T>({
     { key }: { key: string },
   ) {
     const value = await valkey.lpop(key);
+    return value ? convert(value) : undefined;
+  };
+}
+
+export function rpushList<T>({
+  convert = serializeField,
+}: {
+  convert?: FieldSerializer<T>;
+} = {}) {
+  return async function push(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    { key, input }: { key: string; input: T },
+  ) {
+    await valkey.rpush(key, convert(input));
+    return;
+  };
+}
+
+export function rpopList<T>({
+  convert = deserializeField,
+}: {
+  convert?: FieldDeserializer<T>;
+} = {}) {
+  return async function pop(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    { key }: { key: string },
+  ) {
+    const value = await valkey.rpop(key);
     return value ? convert(value) : undefined;
   };
 }
