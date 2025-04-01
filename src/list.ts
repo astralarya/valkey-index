@@ -6,7 +6,6 @@ import {
   type ValkeyIndexerReturn,
 } from "./indexer";
 import {
-  assembleRecord,
   DEFAULT_DESERIALIZER,
   DEFAULT_SERIALIZER,
   type ValueDeserializer,
@@ -95,7 +94,7 @@ export function pushList<T>({
   convert?: ValueSerializer<T>;
 } = {}) {
   return async function push(
-    ctx: ValkeyIndexerReturn<T, never>,
+    { valkey }: ValkeyIndexerReturn<T, never>,
     { input }: { input: T },
   ) {
     return;

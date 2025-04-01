@@ -29,11 +29,3 @@ export function DEFAULT_DESERIALIZER<T>(
     }),
   ) as T;
 }
-
-export function assembleRecord(fields: string[]) {
-  const r: Record<string, string> = {};
-  for (let i = 0; i + 2 <= fields.length; i += 2) {
-    r[fields[i]!] = fields[i + 1]!;
-  }
-  return r;
-}

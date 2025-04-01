@@ -6,7 +6,6 @@ import {
   type ValkeyIndexerReturn,
 } from "./indexer";
 import {
-  assembleRecord,
   DEFAULT_DESERIALIZER,
   DEFAULT_SERIALIZER,
   type ValueDeserializer,
@@ -274,4 +273,12 @@ export function readStream<T>({
       signal?.removeEventListener("abort", abort!);
     };
   };
+}
+
+function assembleRecord(fields: string[]) {
+  const r: Record<string, string> = {};
+  for (let i = 0; i + 2 <= fields.length; i += 2) {
+    r[fields[i]!] = fields[i + 1]!;
+  }
+  return r;
 }
