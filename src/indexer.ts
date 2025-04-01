@@ -36,7 +36,7 @@ export type ValkeyIndexRelations<T, R extends keyof T> = Record<
 >;
 
 export type ValkeyIndexEvent<T, R extends keyof T> = {
-  source: ValkeyIndexRef<T, R>;
+  source: ValkeyIndexGlobalRef;
   message: string;
 };
 
@@ -158,12 +158,15 @@ export function ValkeyIndexer<T, R extends keyof T>({
   ) {
     const pipeline = valkey.multi();
     if ("source" in arg && "channel" in arg) {
-      const event = stringifyEvent(arg.source, arg.message);
+      const event = stringifyEvent({ ...arg.source, index: name }, arg.message);
       for (const pkey of await pkeys(arg.channel)) {
         pipeline.publish(key({ pkey }), event);
       }
     } else if ("pkey" in arg) {
-      const event = stringifyEvent<T, R>({ pkey: arg.pkey }, arg.message);
+      const event = stringifyEvent<T, R>(
+        { pkey: arg.pkey, index: name },
+        arg.message,
+      );
       for (const pkey of await pkeys(arg)) {
         pipeline.publish(key({ pkey }), event);
         await mapRelations({ pkey }, (ref) => {
@@ -172,7 +175,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
       }
     } else if ("fkey" in arg && "relation" in arg) {
       const event = stringifyEvent<T, R>(
-        { fkey: arg.fkey, relation: arg.relation },
+        { fkey: arg.fkey, relation: arg.relation, index: name },
         arg.message,
       );
       for (const pkey of await pkeys(arg)) {
@@ -252,7 +255,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
       pipeline.zremrangebyrank(key_, 0, -maxlen - 1);
     }
     if (message !== undefined) {
-      const event = stringifyEvent({ pkey }, message);
+      const event = stringifyEvent({ pkey, index: name }, message);
       pipeline.publish(key_, event);
     }
   }
@@ -283,7 +286,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
       pipeline.expire(key_, ttl);
     }
     if (message !== undefined) {
-      const event = stringifyEvent({ pkey }, message);
+      const event = stringifyEvent({ pkey, index: name }, message);
       pipeline.publish(key({ pkey }), event);
     }
     const rm = curr && next && diffRelations({ curr, next });
@@ -449,6 +452,9 @@ function splitOnce(input: string, sep: string) {
   if (idx === input.length - sep.length) {
     throw new ValkeyIndexRefParseError(`Bad split (sep '${sep}')`);
   }
+  if (idx === -1) {
+    return [input, ""];
+  }
   return [input.slice(0, idx), input.slice(idx + sep.length)] as const;
 }
 
@@ -494,15 +500,24 @@ export function stringifyRef(ref: ValkeyIndexGlobalRef) {
 }
 
 export function parseEvent<T, R extends keyof T>(data: string) {
-  return JSON.parse(data) as ValkeyIndexEvent<T, R>;
+  const { source, message } = JSON.parse(data) as Omit<
+    ValkeyIndexEvent<T, R>,
+    "source"
+  > & {
+    source: string;
+  };
+  return {
+    source: parseRef(source),
+    message,
+  };
 }
 
 export function stringifyEvent<T, R extends keyof T>(
-  source: ValkeyIndexRef<T, R>,
+  source: ValkeyIndexGlobalRef,
   message: string,
 ) {
   return JSON.stringify({
-    source,
+    source: stringifyRef(source),
     message,
   });
 }

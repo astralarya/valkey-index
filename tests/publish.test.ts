@@ -60,7 +60,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "hello",
       },
@@ -69,7 +70,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "hello",
       },
@@ -103,7 +105,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "world",
       },
@@ -112,7 +115,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "world",
       },
@@ -151,7 +155,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "good",
       },
@@ -160,7 +165,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "good",
       },
@@ -194,7 +200,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "morning",
       },
@@ -203,7 +210,8 @@ test("Publish", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "publish",
         },
         message: "morning",
       },

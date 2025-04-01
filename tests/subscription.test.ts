@@ -58,7 +58,8 @@ test("Subscription", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "subscription",
         },
         message: "hello",
       },
@@ -67,7 +68,8 @@ test("Subscription", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "subscription",
         },
         message: "hello",
       },
@@ -102,7 +104,8 @@ test("Subscription", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "subscription",
         },
         message: "world",
       },
@@ -111,7 +114,8 @@ test("Subscription", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "subscription",
         },
         message: "world",
       },
@@ -146,7 +150,8 @@ test("Subscription", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "subscription",
         },
         message: "good",
       },
@@ -156,7 +161,8 @@ test("Subscription", async () => {
       done: false,
       value: {
         source: {
-          pkey: 1,
+          pkey: "1",
+          index: "subscription",
         },
         message: "good",
       },
