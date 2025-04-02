@@ -30,6 +30,11 @@ export type ValkeyListPush<T> = (arg: {
   input: T;
 }) => Promise<void>;
 
+export type ValkeyListPushx<T> = (arg: {
+  pkey: KeyPart;
+  input: T[];
+}) => Promise<void>;
+
 export type ValkeyListPop<T> = (arg: {
   pkey: KeyPart;
 }) => Promise<T | undefined>;
@@ -37,6 +42,11 @@ export type ValkeyListPop<T> = (arg: {
 export type ValkeyListRpush<T> = (arg: {
   pkey: KeyPart;
   input: T;
+}) => Promise<void>;
+
+export type ValkeyListRpushx<T> = (arg: {
+  pkey: KeyPart;
+  input: T[];
 }) => Promise<void>;
 
 export type ValkeyListRpop<T> = (arg: {
@@ -58,8 +68,10 @@ export type ValkeyListTrim<T> = (arg: {
 export type ValkeyListIndexOps<T> = {
   len: ValkeyListLen;
   push: ValkeyListPush<T>;
+  pushx: ValkeyListPushx<T>;
   pop: ValkeyListPop<T>;
   rpush: ValkeyListRpush<T>;
+  rpushx: ValkeyListRpushx<T>;
   rpop: ValkeyListRpop<T>;
   index: ValkeyListIndex<T>;
   trim: ValkeyListTrim<T>;
@@ -75,6 +87,11 @@ export type ValkeyListPushHandler<T> = (
   arg: { key: string; input: T },
 ) => Promise<void>;
 
+export type ValkeyListPushxHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string; input: T[] },
+) => Promise<void>;
+
 export type ValkeyListPopHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string },
@@ -83,6 +100,11 @@ export type ValkeyListPopHandler<T> = (
 export type ValkeyListRpushHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string; input: T },
+) => Promise<void>;
+
+export type ValkeyListRpushxHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string; input: T[] },
 ) => Promise<void>;
 
 export type ValkeyListRpopHandler<T> = (
@@ -108,8 +130,10 @@ export type ValkeyListTrimHandler<T> = (
 export type ValkeyListIndexHandlers<T> = {
   len: ValkeyListLenHandler<T>;
   push: ValkeyListPushHandler<T>;
+  pushx: ValkeyListPushxHandler<T>;
   pop: ValkeyListPopHandler<T>;
   rpush: ValkeyListRpushHandler<T>;
+  rpushx: ValkeyListRpushxHandler<T>;
   rpop: ValkeyListRpopHandler<T>;
   index: ValkeyListIndexHandler<T>;
   trim: ValkeyListTrimHandler<T>;
@@ -129,6 +153,7 @@ export function ValkeyListIndex<
   functions = {} as F,
   len: len__,
   push: push__,
+  pushx: pushx__,
   pop: pop__,
   rpush: rpush__,
   rpop: rpop__,
@@ -137,6 +162,7 @@ export function ValkeyListIndex<
 }: ValkeyListIndexProps<T, F>) {
   const len_ = len__ || lenList();
   const push_ = push__ || pushList();
+  const pushx_ = pushx__ || pushxList();
   const pop_ = pop__ || popList();
   const rpush_ = rpush__ || rpushList();
   const rpop_ = rpop__ || rpopList();
@@ -158,12 +184,20 @@ export function ValkeyListIndex<
     push_(indexer, { key: indexer.key({ pkey }), input });
   }
 
+  async function pushx({ pkey, input }: { pkey: KeyPart; input: T[] }) {
+    pushx_(indexer, { key: indexer.key({ pkey }), input });
+  }
+
   async function pop({ pkey }: { pkey: KeyPart }) {
     return pop_(indexer, { key: indexer.key({ pkey }) });
   }
 
   async function rpush({ pkey, input }: { pkey: KeyPart; input: T }) {
     rpush_(indexer, { key: indexer.key({ pkey }), input });
+  }
+
+  async function rpushx({ pkey, input }: { pkey: KeyPart; input: T[] }) {
+    rpushx_(indexer, { key: indexer.key({ pkey }), input });
   }
 
   async function rpop({ pkey }: { pkey: KeyPart }) {
@@ -197,6 +231,7 @@ export function ValkeyListIndex<
     ...indexer,
     len,
     push,
+    pushx,
     pop,
     rpush,
     rpop,
@@ -233,6 +268,20 @@ export function pushList<T>({
   };
 }
 
+export function pushxList<T>({
+  convert = serializeField,
+}: {
+  convert?: FieldSerializer<T>;
+} = {}) {
+  return async function pushx(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    { key, input }: { key: string; input: T[] },
+  ) {
+    await valkey.lpushx(key, ...input.map(convert));
+    return;
+  };
+}
+
 export function popList<T>({
   convert = deserializeField,
 }: {
@@ -257,6 +306,20 @@ export function rpushList<T>({
     { key, input }: { key: string; input: T },
   ) {
     await valkey.rpush(key, convert(input));
+    return;
+  };
+}
+
+export function rpushxList<T>({
+  convert = serializeField,
+}: {
+  convert?: FieldSerializer<T>;
+} = {}) {
+  return async function rpushx(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    { key, input }: { key: string; input: T[] },
+  ) {
+    await valkey.rpushx(key, ...input.map(convert));
     return;
   };
 }
