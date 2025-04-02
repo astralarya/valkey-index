@@ -98,7 +98,7 @@ export type ValkeyListIndexHandlers<T> = {
 export type ValkeyListIndexInterface<T> = ValkeyIndexerReturn<T, never> &
   ValkeyListIndexOps<T>;
 
-export function ValkeyStreamIndex<
+export function ValkeyListIndex<
   T,
   F extends ValkeyIndexSpec<ValkeyListIndexOps<T>>,
 >({
