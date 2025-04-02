@@ -1,3 +1,4 @@
+import type { ChainableCommander } from "iovalkey";
 import { bindHandlers, type ValkeyIndexSpec } from "./handler";
 import {
   ValkeyIndexer,
@@ -47,6 +48,13 @@ export type ValkeyListIndex<T> = (arg: {
   index: number;
 }) => Promise<T | null>;
 
+export type ValkeyListTrim<T> = (arg: {
+  pkey: KeyPart;
+  start: number;
+  stop: number;
+  pipeline?: ChainableCommander;
+}) => Promise<void>;
+
 export type ValkeyListIndexOps<T> = {
   len: ValkeyListLen;
   push: ValkeyListPush<T>;
@@ -54,6 +62,7 @@ export type ValkeyListIndexOps<T> = {
   rpush: ValkeyListRpush<T>;
   rpop: ValkeyListRpop<T>;
   index: ValkeyListIndex<T>;
+  trim: ValkeyListTrim<T>;
 };
 
 export type ValkeyListLenHandler<T> = (
@@ -86,6 +95,16 @@ export type ValkeyListIndexHandler<T> = (
   arg: { key: string; index: number },
 ) => Promise<T | null>;
 
+export type ValkeyListTrimHandler<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: {
+    key: string;
+    start: number;
+    stop: number;
+    pipeline?: ChainableCommander;
+  },
+) => Promise<void>;
+
 export type ValkeyListIndexHandlers<T> = {
   len: ValkeyListLenHandler<T>;
   push: ValkeyListPushHandler<T>;
@@ -93,6 +112,7 @@ export type ValkeyListIndexHandlers<T> = {
   rpush: ValkeyListRpushHandler<T>;
   rpop: ValkeyListRpopHandler<T>;
   index: ValkeyListIndexHandler<T>;
+  trim: ValkeyListTrimHandler<T>;
 };
 
 export type ValkeyListIndexInterface<T> = ValkeyIndexerReturn<T, never> &
@@ -113,6 +133,7 @@ export function ValkeyListIndex<
   rpush: rpush__,
   rpop: rpop__,
   index: index__,
+  trim: trim__,
 }: ValkeyListIndexProps<T, F>) {
   const len_ = len__ || lenList();
   const push_ = push__ || pushList();
@@ -120,6 +141,7 @@ export function ValkeyListIndex<
   const rpush_ = rpush__ || rpushList();
   const rpop_ = rpop__ || rpopList();
   const index_ = index__ || indexList();
+  const trim_ = trim__ || trimList();
 
   const indexer = ValkeyIndexer<T, never>({
     valkey,
@@ -152,6 +174,25 @@ export function ValkeyListIndex<
     return index_(indexer, { key: indexer.key({ pkey }), index });
   }
 
+  async function trim({
+    pkey,
+    start,
+    stop,
+    pipeline,
+  }: {
+    pkey: KeyPart;
+    start: number;
+    stop: number;
+    pipeline?: ChainableCommander;
+  }) {
+    return trim_(indexer, {
+      key: indexer.key({ pkey }),
+      start,
+      stop,
+      pipeline,
+    });
+  }
+
   const ops: ValkeyListIndexInterface<T> = {
     ...indexer,
     len,
@@ -160,6 +201,7 @@ export function ValkeyListIndex<
     rpush,
     rpop,
     index,
+    trim,
   };
 
   return {
@@ -244,5 +286,28 @@ export function indexList<T>({
   ) {
     const value = await valkey.lindex(key, index);
     return value ? convert(value) : null;
+  };
+}
+
+export function trimList<T>() {
+  return async function index(
+    { valkey }: ValkeyIndexerReturn<T, never>,
+    {
+      key,
+      start,
+      stop,
+      pipeline,
+    }: {
+      key: string;
+      start: number;
+      stop: number;
+      pipeline?: ChainableCommander;
+    },
+  ) {
+    if (pipeline) {
+      pipeline.ltrim(key, start, stop);
+    } else {
+      await valkey.ltrim(key, start, stop);
+    }
   };
 }
