@@ -467,7 +467,31 @@ export function parseRef(ref: string): ValkeyIndexGlobalRef {
         `Failed to parse index ref (parsing '${ref}')`,
       );
     }
+    try {
+      validateValkeyName(index);
+    } catch (err) {
+      if (err instanceof ValkeyIndexNameError) {
+        throw new ValkeyIndexRefParseError(
+          `Failed to parse index ref (parsing '${ref}')`,
+          { cause: err },
+        );
+      } else {
+        throw err;
+      }
+    }
     if (relation) {
+      try {
+        validateValkeyName(relation);
+      } catch (err) {
+        if (err instanceof ValkeyIndexNameError) {
+          throw new ValkeyIndexRefParseError(
+            `Failed to parse index ref (parsing '${ref}')`,
+            { cause: err },
+          );
+        } else {
+          throw err;
+        }
+      }
       return {
         index,
         fkey: key,
