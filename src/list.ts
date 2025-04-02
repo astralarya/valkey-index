@@ -156,6 +156,7 @@ export function ValkeyListIndex<
   pushx: pushx__,
   pop: pop__,
   rpush: rpush__,
+  rpushx: rpushx__,
   rpop: rpop__,
   index: index__,
   trim: trim__,
@@ -165,6 +166,7 @@ export function ValkeyListIndex<
   const pushx_ = pushx__ || pushxList();
   const pop_ = pop__ || popList();
   const rpush_ = rpush__ || rpushList();
+  const rpushx_ = rpushx__ || rpushxList();
   const rpop_ = rpop__ || rpopList();
   const index_ = index__ || indexList();
   const trim_ = trim__ || trimList();
@@ -234,6 +236,7 @@ export function ValkeyListIndex<
     pushx,
     pop,
     rpush,
+    rpushx,
     rpop,
     index,
     trim,
