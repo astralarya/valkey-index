@@ -11,7 +11,7 @@ import {
   serializeField,
   type FieldDeserializer,
   type FieldSerializer,
-} from "./serde";
+} from "./type";
 
 export type ValkeyListIndexProps<
   T,

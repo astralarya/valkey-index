@@ -4,7 +4,7 @@ import {
   deserializeRecord,
   type RecordSerializer,
   type RecordDeserializer,
-} from "./serde";
+} from "./type";
 import {
   type KeyPart,
   validateValkeyName,

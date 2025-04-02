@@ -10,7 +10,7 @@ import {
   serializeRecord,
   type RecordDeserializer,
   type RecordSerializer,
-} from "./serde";
+} from "./type";
 
 export type ValkeyStreamIndexProps<
   T,

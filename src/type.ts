@@ -1,5 +1,15 @@
 import SuperJSON from "superjson";
 
+export const ValkeyRecordSymbol = Symbol();
+
+export function Primitive<T>(constructor: (...args: unknown[]) => T) {
+  return constructor;
+}
+
+export function Record<T>(constructor?: (...args: unknown[]) => T) {
+  return constructor ?? ValkeyRecordSymbol;
+}
+
 export type FieldSerializer<T> = (input: T) => string;
 
 export type FieldDeserializer<T> = (input: string) => T;
