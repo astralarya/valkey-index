@@ -1,5 +1,10 @@
 {
   "name": "valkey-index",
+  "description": "Strongly typed index abstractions for Valkey",
+  "keywords": [
+    "valkey",
+    "redis"
+  ],
   "version": "0.0.4",
   "main": "src/index.ts",
   "type": "module",
