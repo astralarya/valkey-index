@@ -17,9 +17,7 @@ Create an index:
 import Valkey from "iovalkey";
 import {
   ValkeyHashIndex,
-  getHash,
-  setHash,
-  updateHash,
+  ValkeyType,
 } from "valkey-index";
 
 const valkey = new Valkey();
@@ -34,11 +32,8 @@ const sessionIndex = ValkeyHashIndex(
   {
     valkey,
     name: "session",
-    exemplar: 0 as Session | 0,
+    type: ValkeyType<Session>(),
     relations: ["user_id"],
-    get: getHash(),
-    set: setHash(),
-    update: updateHash(),
   },
 );
 
