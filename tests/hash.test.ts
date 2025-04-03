@@ -1,4 +1,4 @@
-import { ValkeyHashIndex, ValkeyIndexRecordType, type KeyPart } from "../src";
+import { ValkeyHashIndex, ValkeyIndexType, type KeyPart } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
@@ -6,7 +6,7 @@ useBeforeEach();
 const hashIndex = ValkeyHashIndex({
   valkey,
   name: "hash",
-  type: ValkeyIndexRecordType<TestObject>(),
+  type: ValkeyIndexType<TestObject>(),
   relations: [],
   functions: {
     use: async ({ get, update }, { pkey }: { pkey: KeyPart }) => {

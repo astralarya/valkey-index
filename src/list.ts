@@ -6,11 +6,7 @@ import {
   type ValkeyIndexerProps,
   type ValkeyIndexerReturn,
 } from "./indexer";
-import {
-  ValkeyIndexType,
-  type FieldDeserializer,
-  type FieldSerializer,
-} from "./type";
+import { ValkeyIndexType } from "./type";
 
 export type ValkeyListIndexProps<
   T,

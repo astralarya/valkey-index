@@ -5,17 +5,13 @@ import {
   type ValkeyIndexerProps,
   type ValkeyIndexerReturn,
 } from "./indexer";
-import {
-  deserializeRecord,
-  serializeRecord,
-  ValkeyIndexRecordType,
-} from "./type";
+import type { ValkeyIndexType } from "./type";
 
 export type ValkeyStreamIndexProps<
   T,
   F extends ValkeyIndexSpec<ValkeyStreamIndexOps<T>>,
 > = ValkeyIndexerProps<T, never> & {
-  type: ValkeyIndexRecordType<T>;
+  type: ValkeyIndexType<T>;
   functions?: F;
 } & Partial<ValkeyStreamIndexHandlers<T>>;
 
@@ -117,14 +113,13 @@ export type AppendStreamArg<T> = {
   message?: string;
 };
 
-export function appendStream<T>(type: ValkeyIndexRecordType<T>) {
-  const toValkey = serializeRecord(type);
+export function appendStream<T>(type: ValkeyIndexType<T>) {
   return async function append(
     { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
     { pkey, input, id, ttl: ttl_, message }: AppendStreamArg<T>,
   ) {
     const key = _key({ pkey });
-    const value = input && toValkey(input);
+    const value = input && type.toStringMap(input);
     if (value === undefined) {
       return;
     }
@@ -159,8 +154,7 @@ type RangeStreamArg = {
   message?: string;
 };
 
-export function rangeStream<T>(type: ValkeyIndexRecordType<T>) {
-  const fromValkey = deserializeRecord(type);
+export function rangeStream<T>(type: ValkeyIndexType<T>) {
   return async function range(
     { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
     { pkey, start, stop, ttl: ttl_, message }: RangeStreamArg,
@@ -181,7 +175,7 @@ export function rangeStream<T>(type: ValkeyIndexRecordType<T>) {
     return result.map(([id, fields]) => {
       return {
         id,
-        data: fromValkey(assembleRecord(fields)),
+        data: type.fromStringMap(assembleRecord(fields)),
       } as ValkeyStreamItem<T>;
     });
   };
@@ -204,8 +198,7 @@ type ReadStreamArg = {
 
 // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
 // until then this leaks connections
-export function readStream<T>(type: ValkeyIndexRecordType<T>) {
-  const fromValkey = deserializeRecord(type);
+export function readStream<T>(type: ValkeyIndexType<T>) {
   return async function* read(
     ops: ValkeyIndexerReturn<T, never>,
     { pkey, count, block, lastId, signal, ttl: ttl_, message }: ReadStreamArg,
@@ -244,7 +237,7 @@ export function readStream<T>(type: ValkeyIndexRecordType<T>) {
         for (const [, items] of results ?? []) {
           for (const [id, fields] of items) {
             lastSeen = id;
-            const data = fromValkey(assembleRecord(fields));
+            const data = type.fromStringMap(assembleRecord(fields));
             if (data) {
               yield { id, data };
             }

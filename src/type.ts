@@ -1,39 +1,50 @@
 import SuperJSON from "superjson";
 
+const DEFAULT_FROM_STRING = SuperJSON.parse;
+const DEFAULT_TO_STRING = SuperJSON.stringify;
+
 export type ValkeyIndexType<T> = {
   fromString: (input: string) => T;
+  fromStringMap: (input: Record<string, string | undefined>) => Partial<T>;
   toString: (input: T) => string;
+  toStringMap: (
+    input: Partial<T>,
+  ) => Record<string, string | undefined> | undefined;
 };
 
+export type FromValkey<T> = (input: string) => T & { toString?: () => string };
+export type ToValkey<T> = (input: T) => string;
+
+export type FromValkeyMap<T> = { [R in keyof T]: FromValkey<T[R]> };
+export type ToValkeyMap<T> = { [R in keyof T]: ToValkey<T[R]> };
+
 export function ValkeyIndexType<T>(
-  fromString?: (input: string) => T & { toString?: () => string },
-  toString?: (input: T) => string,
+  fromString?: FromValkey<T> | FromValkeyMap<T>,
+  toString?: ToValkey<T> | ToValkeyMap<T>,
 ): ValkeyIndexType<T> {
   return {
-    fromString: fromString ?? SuperJSON.parse,
-    toString: toString ?? fromString?.toString ?? SuperJSON.stringify,
+    fromString:
+      fromString instanceof Function
+        ? fromString ?? DEFAULT_FROM_STRING
+        : DEFAULT_FROM_STRING,
+    fromStringMap: deserializeRecord(
+      fromString && !(fromString instanceof Function)
+        ? fromString
+        : ({} as FromValkeyMap<T>),
+    ),
+    toString:
+      toString instanceof Function
+        ? toString ?? DEFAULT_TO_STRING
+        : DEFAULT_TO_STRING,
+    toStringMap: serializeRecord(
+      toString && !(toString instanceof Function)
+        ? toString
+        : ({} as ToValkeyMap<T>),
+    ),
   };
 }
 
-export type ValkeyIndexRecordType<T> = {
-  [K in keyof T]: ValkeyIndexType<T[K]>;
-};
-
-export function ValkeyIndexRecordType<T>() {
-  return {} as ValkeyIndexRecordType<T>;
-}
-
-export type FieldSerializer<T> = (input: T) => string;
-
-export type FieldDeserializer<T> = (input: string) => T;
-
-export type RecordSerializer<T> = (
-  input: T,
-) => Record<string, string | number | undefined> | undefined;
-
-export type RecordDeserializer<T> = (input: Record<string, string>) => T;
-
-export function serializeRecord<T>(record: ValkeyIndexRecordType<T>) {
+function serializeRecord<T>(record: ToValkeyMap<T>) {
   return function serialize<T>(input: T) {
     if (!input) {
       return {};
@@ -42,10 +53,7 @@ export function serializeRecord<T>(record: ValkeyIndexRecordType<T>) {
         Object.entries(input).map(([key, val]) => {
           return [
             key,
-            (
-              record[key as keyof typeof record]?.toString ??
-              SuperJSON.stringify
-            )(val),
+            (record[key as keyof typeof record] ?? DEFAULT_TO_STRING)(val),
           ];
         }),
       );
@@ -53,17 +61,14 @@ export function serializeRecord<T>(record: ValkeyIndexRecordType<T>) {
   };
 }
 
-export function deserializeRecord<T>(record: ValkeyIndexRecordType<T>) {
+function deserializeRecord<T>(record: FromValkeyMap<T>) {
   return function deserialize<T>(input: Record<string, string | undefined>) {
     return Object.fromEntries(
       Object.entries(input).map(([key, val]) => {
         return [
           key,
           val
-            ? (
-                record[key as keyof typeof record]?.fromString ??
-                SuperJSON.parse
-              )(val)
+            ? (record[key as keyof typeof record] ?? DEFAULT_FROM_STRING)(val)
             : val,
         ];
       }),

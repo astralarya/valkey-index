@@ -1,9 +1,5 @@
 import type Redis from "iovalkey";
-import {
-  serializeRecord,
-  deserializeRecord,
-  ValkeyIndexRecordType,
-} from "./type";
+import { ValkeyIndexType } from "./type";
 import {
   type KeyPart,
   validateValkeyName,
@@ -22,7 +18,7 @@ export type ValkeyHashIndexProps<
   R extends keyof T,
   F extends ValkeyIndexSpec<ValkeyHashIndexInterface<T, R>>,
 > = ValkeyIndexerProps<T, R> & {
-  type: ValkeyIndexRecordType<T>;
+  type: ValkeyIndexType<T>;
   relations: R[];
   functions?: F;
 } & Partial<ValkeyHashIndexHandlers<T, R>>;
@@ -201,7 +197,7 @@ export function ValkeyHashIndex<
             ] as const;
           }),
         ),
-      ) as Record<R, T | undefined>;
+      ) as Record<R, Partial<T> | undefined>;
     }
     throw new ValkeyIndexRefError("ValkeyHashIndex:get()");
   }
@@ -274,8 +270,7 @@ export function ValkeyHashIndex<
   };
 }
 
-export function getHash<T, R extends keyof T>(type: ValkeyIndexRecordType<T>) {
-  const fromValkey = deserializeRecord(type);
+export function getHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
   return async function get(
     { valkey }: { valkey: Redis },
     { key, fields }: { key: string; fields?: R[] },
@@ -291,16 +286,15 @@ export function getHash<T, R extends keyof T>(type: ValkeyIndexRecordType<T>) {
           return [fields[idx], result] as const;
         }) ?? [],
       );
-      return fromValkey(value);
+      return type.fromStringMap(value);
     } else {
       const value = await valkey.hgetall(key);
-      return fromValkey(value);
+      return type.fromStringMap(value);
     }
   };
 }
 
-export function setHash<T, R extends keyof T>(type: ValkeyIndexRecordType<T>) {
-  const toValkey = serializeRecord(type);
+export function setHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
   return async function set(
     { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: T },
@@ -308,7 +302,7 @@ export function setHash<T, R extends keyof T>(type: ValkeyIndexRecordType<T>) {
     if (input === undefined) {
       return;
     }
-    const value = toValkey(input);
+    const value = type.toStringMap(input);
     if (value === undefined) {
       return;
     }
@@ -317,15 +311,12 @@ export function setHash<T, R extends keyof T>(type: ValkeyIndexRecordType<T>) {
   };
 }
 
-export function updateHash<T, R extends keyof T>(
-  type: ValkeyIndexRecordType<T>,
-) {
-  const toValkey = serializeRecord(type);
+export function updateHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
   return async function update(
     { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: Partial<T> },
   ) {
-    const value = toValkey(input);
+    const value = type.toStringMap(input);
     if (value === undefined) {
       return;
     }
