@@ -22,7 +22,7 @@ export type ValkeyHashIndexProps<
   R extends keyof T,
   F extends ValkeyIndexSpec<ValkeyHashIndexInterface<T, R>>,
 > = ValkeyIndexerProps<T, R> & {
-  type: ValkeyIndexRecordType<T, keyof T>;
+  type: ValkeyIndexRecordType<T>;
   relations: R[];
   functions?: F;
 } & Partial<ValkeyHashIndexHandlers<T, R>>;
@@ -274,9 +274,7 @@ export function ValkeyHashIndex<
   };
 }
 
-export function getHash<T, R extends keyof T>(
-  type: ValkeyIndexRecordType<T, keyof T>,
-) {
+export function getHash<T, R extends keyof T>(type: ValkeyIndexRecordType<T>) {
   const fromValkey = deserializeRecord(type);
   return async function get(
     { valkey }: { valkey: Redis },
@@ -301,9 +299,7 @@ export function getHash<T, R extends keyof T>(
   };
 }
 
-export function setHash<T, R extends keyof T>(
-  type: ValkeyIndexRecordType<T, keyof T>,
-) {
+export function setHash<T, R extends keyof T>(type: ValkeyIndexRecordType<T>) {
   const toValkey = serializeRecord(type);
   return async function set(
     { pipeline }: ValkeyIndexerContext<T, R>,
@@ -322,7 +318,7 @@ export function setHash<T, R extends keyof T>(
 }
 
 export function updateHash<T, R extends keyof T>(
-  type: ValkeyIndexRecordType<T, keyof T>,
+  type: ValkeyIndexRecordType<T>,
 ) {
   const toValkey = serializeRecord(type);
   return async function update(

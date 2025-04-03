@@ -15,12 +15,12 @@ export function ValkeyIndexType<T>(
   };
 }
 
-export type ValkeyIndexRecordType<T, R extends keyof T> = {
-  [X in R]: ValkeyIndexType<T[X]>;
+export type ValkeyIndexRecordType<T> = {
+  [K in keyof T]: ValkeyIndexType<T[K]>;
 };
 
 export function ValkeyIndexRecordType<T>() {
-  return {} as ValkeyIndexRecordType<T, keyof T>;
+  return {} as ValkeyIndexRecordType<T>;
 }
 
 export type FieldSerializer<T> = (input: T) => string;
@@ -33,9 +33,7 @@ export type RecordSerializer<T> = (
 
 export type RecordDeserializer<T> = (input: Record<string, string>) => T;
 
-export function serializeRecord<T, R extends keyof T>(
-  record: ValkeyIndexRecordType<T, R>,
-) {
+export function serializeRecord<T>(record: ValkeyIndexRecordType<T>) {
   return function serialize<T>(input: T) {
     if (!input) {
       return {};
@@ -44,7 +42,10 @@ export function serializeRecord<T, R extends keyof T>(
         Object.entries(input).map(([key, val]) => {
           return [
             key,
-            (record[key as R]?.toString ?? SuperJSON.stringify)(val),
+            (
+              record[key as keyof typeof record]?.toString ??
+              SuperJSON.stringify
+            )(val),
           ];
         }),
       );
@@ -52,15 +53,18 @@ export function serializeRecord<T, R extends keyof T>(
   };
 }
 
-export function deserializeRecord<T, R extends keyof T>(
-  record: ValkeyIndexRecordType<T, R>,
-) {
+export function deserializeRecord<T>(record: ValkeyIndexRecordType<T>) {
   return function deserialize<T>(input: Record<string, string | undefined>) {
     return Object.fromEntries(
       Object.entries(input).map(([key, val]) => {
         return [
           key,
-          val ? (record[key as R]?.fromString ?? SuperJSON.parse)(val) : val,
+          val
+            ? (
+                record[key as keyof typeof record]?.fromString ??
+                SuperJSON.parse
+              )(val)
+            : val,
         ];
       }),
     ) as Partial<T>;

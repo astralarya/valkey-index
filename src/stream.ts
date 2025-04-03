@@ -15,7 +15,7 @@ export type ValkeyStreamIndexProps<
   T,
   F extends ValkeyIndexSpec<ValkeyStreamIndexOps<T>>,
 > = ValkeyIndexerProps<T, never> & {
-  type: ValkeyIndexRecordType<T, keyof T>;
+  type: ValkeyIndexRecordType<T>;
   functions?: F;
 } & Partial<ValkeyStreamIndexHandlers<T>>;
 
@@ -117,7 +117,7 @@ export type AppendStreamArg<T> = {
   message?: string;
 };
 
-export function appendStream<T>(type: ValkeyIndexRecordType<T, keyof T>) {
+export function appendStream<T>(type: ValkeyIndexRecordType<T>) {
   const toValkey = serializeRecord(type);
   return async function append(
     { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
@@ -159,7 +159,7 @@ type RangeStreamArg = {
   message?: string;
 };
 
-export function rangeStream<T>(type: ValkeyIndexRecordType<T, keyof T>) {
+export function rangeStream<T>(type: ValkeyIndexRecordType<T>) {
   const fromValkey = deserializeRecord(type);
   return async function range(
     { valkey, key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
@@ -204,7 +204,7 @@ type ReadStreamArg = {
 
 // HOPE bun fixes https://github.com/oven-sh/bun/issues/17591
 // until then this leaks connections
-export function readStream<T>(type: ValkeyIndexRecordType<T, keyof T>) {
+export function readStream<T>(type: ValkeyIndexRecordType<T>) {
   const fromValkey = deserializeRecord(type);
   return async function* read(
     ops: ValkeyIndexerReturn<T, never>,
