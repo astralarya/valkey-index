@@ -23,9 +23,9 @@ import {
 const valkey = new Valkey();
 
 type Session = {
-  id: string,
+  id: number,
   expires?: Date,
-  user_id: string,
+  user_id: number,
 }
 
 const sessionIndex = ValkeyHashIndex(
