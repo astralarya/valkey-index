@@ -2,8 +2,7 @@ import type Redis from "iovalkey";
 import {
   serializeRecord,
   deserializeRecord,
-  type RecordSerializer,
-  type RecordDeserializer,
+  ValkeyIndexRecordType,
 } from "./type";
 import {
   type KeyPart,
@@ -23,7 +22,7 @@ export type ValkeyHashIndexProps<
   R extends keyof T,
   F extends ValkeyIndexSpec<ValkeyHashIndexInterface<T, R>>,
 > = ValkeyIndexerProps<T, R> & {
-  exemplar: T | 0;
+  type: ValkeyIndexRecordType<T, keyof T>;
   relations: R[];
   functions?: F;
 } & Partial<ValkeyHashIndexHandlers<T, R>>;
@@ -34,14 +33,14 @@ export type ValkeyHashGet<T, R extends keyof T> = {
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<T | undefined>;
+  }): Promise<Partial<T> | undefined>;
   (arg: {
     relation: R;
     fkey: KeyPart;
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<Record<R, T | undefined>>;
+  }): Promise<Record<R, Partial<T> | undefined>>;
 };
 
 export type ValkeyHashSet<T> = (arg: {
@@ -97,6 +96,7 @@ export function ValkeyHashIndex<
 >({
   valkey,
   name,
+  type,
   ttl,
   maxlen,
   functions = {} as F,
@@ -107,9 +107,9 @@ export function ValkeyHashIndex<
 }: ValkeyHashIndexProps<T, R, F>) {
   relations.map((x) => validateValkeyName(String(x)));
 
-  const get_ = get__ || getHash();
-  const set_ = set__ || setHash();
-  const update_ = update__ || updateHash();
+  const get_ = get__ || getHash(type);
+  const set_ = set__ || setHash(type);
+  const update_ = update__ || updateHash(type);
 
   function related(value: Partial<T>) {
     const results = Object.fromEntries(
@@ -165,7 +165,7 @@ export function ValkeyHashIndex<
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<T | undefined>;
+  }): Promise<Partial<T> | undefined>;
 
   async function get(arg: {
     relation: R;
@@ -173,7 +173,7 @@ export function ValkeyHashIndex<
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<Record<R, T | undefined>>;
+  }): Promise<Record<R, Partial<T> | undefined>>;
 
   async function get(
     arg: ValkeyIndexRef<T, R> & {
@@ -274,11 +274,10 @@ export function ValkeyHashIndex<
   };
 }
 
-export function getHash<T, R extends keyof T>({
-  convert = deserializeRecord,
-}: {
-  convert?: RecordDeserializer<Partial<T>>;
-} = {}) {
+export function getHash<T, R extends keyof T>(
+  type: ValkeyIndexRecordType<T, keyof T>,
+) {
+  const fromValkey = deserializeRecord(type);
   return async function get(
     { valkey }: { valkey: Redis },
     { key, fields }: { key: string; fields?: R[] },
@@ -294,19 +293,18 @@ export function getHash<T, R extends keyof T>({
           return [fields[idx], result] as const;
         }) ?? [],
       );
-      return convert(value);
+      return fromValkey(value);
     } else {
       const value = await valkey.hgetall(key);
-      return convert(value);
+      return fromValkey(value);
     }
   };
 }
 
-export function setHash<T, R extends keyof T>({
-  convert = serializeRecord,
-}: {
-  convert?: RecordSerializer<T>;
-} = {}) {
+export function setHash<T, R extends keyof T>(
+  type: ValkeyIndexRecordType<T, keyof T>,
+) {
+  const toValkey = serializeRecord(type);
   return async function set(
     { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: T },
@@ -314,7 +312,7 @@ export function setHash<T, R extends keyof T>({
     if (input === undefined) {
       return;
     }
-    const value = convert(input);
+    const value = toValkey(input);
     if (value === undefined) {
       return;
     }
@@ -323,16 +321,15 @@ export function setHash<T, R extends keyof T>({
   };
 }
 
-export function updateHash<T, R extends keyof T>({
-  convert = serializeRecord,
-}: {
-  convert?: RecordSerializer<Partial<T>>;
-} = {}) {
+export function updateHash<T, R extends keyof T>(
+  type: ValkeyIndexRecordType<T, keyof T>,
+) {
+  const toValkey = serializeRecord(type);
   return async function update(
     { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: Partial<T> },
   ) {
-    const value = convert(input);
+    const value = toValkey(input);
     if (value === undefined) {
       return;
     }

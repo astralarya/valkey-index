@@ -1,4 +1,8 @@
-import { ValkeyHashIndex } from "../src";
+import {
+  ValkeyHashIndex,
+  ValkeyIndexRecordType,
+  ValkeyIndexType,
+} from "../src";
 import { useBeforeEach, valkey } from "./index.test";
 
 useBeforeEach();
@@ -20,7 +24,7 @@ test("Sanity", () => {
       ValkeyHashIndex({
         valkey,
         name: bad_name,
-        exemplar: undefined,
+        type: ValkeyIndexRecordType<any>(),
         relations: [],
       });
     }).toThrow(Error);
@@ -31,7 +35,7 @@ test("Sanity", () => {
       ValkeyHashIndex({
         valkey,
         name: "good_name",
-        exemplar: { [bad_name]: 0 },
+        type: ValkeyIndexRecordType<any>(),
         relations: [bad_name],
       });
     }).toThrow(Error);
@@ -42,7 +46,7 @@ test("Sanity", () => {
       ValkeyHashIndex({
         name: good_name,
         valkey,
-        exemplar: undefined,
+        type: ValkeyIndexRecordType<any>(),
         relations: [],
       });
     }).not.toThrow(Error);
@@ -51,7 +55,7 @@ test("Sanity", () => {
         ValkeyHashIndex({
           name: good_name,
           valkey,
-          exemplar: { [good_relation]: 0 },
+          type: ValkeyIndexRecordType<any>(),
           relations: [good_relation],
         });
       }).not.toThrow(Error);
@@ -60,7 +64,7 @@ test("Sanity", () => {
           ValkeyHashIndex({
             name: good_name,
             valkey,
-            exemplar: { [good_relation]: 0, [good_relation2]: 0 },
+            type: ValkeyIndexRecordType<any>(),
             relations: [good_relation, good_relation2],
           });
         }).not.toThrow(Error);

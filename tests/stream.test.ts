@@ -1,9 +1,4 @@
-import {
-  appendStream,
-  ValkeyStreamIndex,
-  rangeStream,
-  readStream,
-} from "../src";
+import { ValkeyIndexRecordType, ValkeyStreamIndex } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
@@ -11,7 +6,7 @@ useBeforeEach();
 const streamIndex = ValkeyStreamIndex({
   valkey,
   name: "stream",
-  exemplar: 0 as TestObject | 0,
+  type: ValkeyIndexRecordType<TestObject>(),
 });
 
 test("Stream", async () => {

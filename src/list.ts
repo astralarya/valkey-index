@@ -7,8 +7,7 @@ import {
   type ValkeyIndexerReturn,
 } from "./indexer";
 import {
-  deserializeField,
-  serializeField,
+  ValkeyIndexType,
   type FieldDeserializer,
   type FieldSerializer,
 } from "./type";
@@ -17,7 +16,7 @@ export type ValkeyListIndexProps<
   T,
   F extends ValkeyIndexSpec<ValkeyListIndexOps<T>>,
 > = ValkeyIndexerProps<T, never> & {
-  exemplar: T | 0;
+  type: ValkeyIndexType<T>;
   functions?: F;
 } & Partial<ValkeyListIndexHandlers<T>>;
 
@@ -148,6 +147,7 @@ export function ValkeyListIndex<
 >({
   valkey,
   name,
+  type,
   ttl,
   maxlen,
   functions = {} as F,
@@ -162,13 +162,13 @@ export function ValkeyListIndex<
   trim: trim__,
 }: ValkeyListIndexProps<T, F>) {
   const len_ = len__ || lenList();
-  const push_ = push__ || pushList();
-  const pushx_ = pushx__ || pushxList();
-  const pop_ = pop__ || popList();
-  const rpush_ = rpush__ || rpushList();
-  const rpushx_ = rpushx__ || rpushxList();
-  const rpop_ = rpop__ || rpopList();
-  const index_ = index__ || indexList();
+  const push_ = push__ || pushList(type);
+  const pushx_ = pushx__ || pushxList(type);
+  const pop_ = pop__ || popList(type);
+  const rpush_ = rpush__ || rpushList(type);
+  const rpushx_ = rpushx__ || rpushxList(type);
+  const rpop_ = rpop__ || rpopList(type);
+  const index_ = index__ || indexList(type);
   const trim_ = trim__ || trimList();
 
   const indexer = ValkeyIndexer<T, never>({
@@ -257,101 +257,73 @@ export function lenList<T>() {
   };
 }
 
-export function pushList<T>({
-  convert = serializeField,
-}: {
-  convert?: FieldSerializer<T>;
-} = {}) {
+export function pushList<T>(type: ValkeyIndexType<T>) {
   return async function push(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T },
   ) {
-    await valkey.lpush(key, convert(input));
+    await valkey.lpush(key, type.toString(input));
     return;
   };
 }
 
-export function pushxList<T>({
-  convert = serializeField,
-}: {
-  convert?: FieldSerializer<T>;
-} = {}) {
+export function pushxList<T>(type: ValkeyIndexType<T>) {
   return async function pushx(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T[] },
   ) {
-    await valkey.lpushx(key, ...input.map(convert));
+    await valkey.lpushx(key, ...input.map(type.toString));
     return;
   };
 }
 
-export function popList<T>({
-  convert = deserializeField,
-}: {
-  convert?: FieldDeserializer<T>;
-} = {}) {
+export function popList<T>(type: ValkeyIndexType<T>) {
   return async function pop(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key }: { key: string },
   ) {
     const value = await valkey.lpop(key);
-    return value ? convert(value) : undefined;
+    return value ? type.fromString(value) : undefined;
   };
 }
 
-export function rpushList<T>({
-  convert = serializeField,
-}: {
-  convert?: FieldSerializer<T>;
-} = {}) {
+export function rpushList<T>(type: ValkeyIndexType<T>) {
   return async function push(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T },
   ) {
-    await valkey.rpush(key, convert(input));
+    await valkey.rpush(key, type.toString(input));
     return;
   };
 }
 
-export function rpushxList<T>({
-  convert = serializeField,
-}: {
-  convert?: FieldSerializer<T>;
-} = {}) {
+export function rpushxList<T>(type: ValkeyIndexType<T>) {
   return async function rpushx(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T[] },
   ) {
-    await valkey.rpushx(key, ...input.map(convert));
+    await valkey.rpushx(key, ...input.map(type.toString));
     return;
   };
 }
 
-export function rpopList<T>({
-  convert = deserializeField,
-}: {
-  convert?: FieldDeserializer<T>;
-} = {}) {
+export function rpopList<T>(type: ValkeyIndexType<T>) {
   return async function pop(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key }: { key: string },
   ) {
     const value = await valkey.rpop(key);
-    return value ? convert(value) : undefined;
+    return value ? type.fromString(value) : undefined;
   };
 }
 
-export function indexList<T>({
-  convert = deserializeField,
-}: {
-  convert?: FieldDeserializer<T>;
-} = {}) {
+export function indexList<T>(type: ValkeyIndexType<T>) {
   return async function index(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, index }: { key: string; index: number },
   ) {
     const value = await valkey.lindex(key, index);
-    return value ? convert(value) : null;
+    return value ? type.fromString(value) : null;
   };
 }
 

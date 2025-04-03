@@ -1,5 +1,5 @@
 import { sleep } from "bun";
-import { ValkeyHashIndex } from "../src";
+import { ValkeyHashIndex, ValkeyIndexRecordType } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
@@ -7,7 +7,7 @@ useBeforeEach();
 const subscriptionIndex = ValkeyHashIndex({
   valkey,
   name: "subscription",
-  exemplar: 0 as TestObject | 0,
+  type: ValkeyIndexRecordType<TestObject>(),
   relations: ["bar", "baz"],
   functions: {
     use: async ({ get, update }, pkey: string) => {
