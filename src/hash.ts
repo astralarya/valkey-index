@@ -1,5 +1,5 @@
 import type Redis from "iovalkey";
-import { ValkeyIndexType } from "./type";
+import { ValkeyType } from "./type";
 import {
   type KeyPart,
   validateValkeyName,
@@ -18,7 +18,7 @@ export type ValkeyHashIndexProps<
   R extends keyof T,
   F extends ValkeyIndexSpec<ValkeyHashIndexInterface<T, R>>,
 > = ValkeyIndexerProps<T, R> & {
-  type: ValkeyIndexType<T>;
+  type: ValkeyType<T>;
   relations: R[];
   functions?: F;
 } & Partial<ValkeyHashIndexHandlers<T, R>>;
@@ -270,7 +270,7 @@ export function ValkeyHashIndex<
   };
 }
 
-export function getHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
+export function getHash<T, R extends keyof T>(type: ValkeyType<T>) {
   return async function get(
     { valkey }: { valkey: Redis },
     { key, fields }: { key: string; fields?: R[] },
@@ -294,7 +294,7 @@ export function getHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function setHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
+export function setHash<T, R extends keyof T>(type: ValkeyType<T>) {
   return async function set(
     { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: T },
@@ -311,7 +311,7 @@ export function setHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function updateHash<T, R extends keyof T>(type: ValkeyIndexType<T>) {
+export function updateHash<T, R extends keyof T>(type: ValkeyType<T>) {
   return async function update(
     { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: Partial<T> },

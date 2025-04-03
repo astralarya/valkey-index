@@ -1,4 +1,4 @@
-import { ValkeyIndexType, ValkeyListIndex } from "../src";
+import { ValkeyType, ValkeyListIndex } from "../src";
 import { useBeforeEach, valkey, type TestObject } from "./index.test";
 
 useBeforeEach();
@@ -6,7 +6,7 @@ useBeforeEach();
 const listIndex = ValkeyListIndex({
   valkey,
   name: "list",
-  type: ValkeyIndexType<TestObject>(),
+  type: ValkeyType<TestObject>(),
 });
 
 test("List", async () => {

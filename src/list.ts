@@ -6,13 +6,13 @@ import {
   type ValkeyIndexerProps,
   type ValkeyIndexerReturn,
 } from "./indexer";
-import { ValkeyIndexType } from "./type";
+import { ValkeyType } from "./type";
 
 export type ValkeyListIndexProps<
   T,
   F extends ValkeyIndexSpec<ValkeyListIndexOps<T>>,
 > = ValkeyIndexerProps<T, never> & {
-  type: ValkeyIndexType<T>;
+  type: ValkeyType<T>;
   functions?: F;
 } & Partial<ValkeyListIndexHandlers<T>>;
 
@@ -253,7 +253,7 @@ export function lenList<T>() {
   };
 }
 
-export function pushList<T>(type: ValkeyIndexType<T>) {
+export function pushList<T>(type: ValkeyType<T>) {
   return async function push(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T },
@@ -263,7 +263,7 @@ export function pushList<T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function pushxList<T>(type: ValkeyIndexType<T>) {
+export function pushxList<T>(type: ValkeyType<T>) {
   return async function pushx(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T[] },
@@ -273,7 +273,7 @@ export function pushxList<T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function popList<T>(type: ValkeyIndexType<T>) {
+export function popList<T>(type: ValkeyType<T>) {
   return async function pop(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key }: { key: string },
@@ -283,7 +283,7 @@ export function popList<T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function rpushList<T>(type: ValkeyIndexType<T>) {
+export function rpushList<T>(type: ValkeyType<T>) {
   return async function push(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T },
@@ -293,7 +293,7 @@ export function rpushList<T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function rpushxList<T>(type: ValkeyIndexType<T>) {
+export function rpushxList<T>(type: ValkeyType<T>) {
   return async function rpushx(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T[] },
@@ -303,7 +303,7 @@ export function rpushxList<T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function rpopList<T>(type: ValkeyIndexType<T>) {
+export function rpopList<T>(type: ValkeyType<T>) {
   return async function pop(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key }: { key: string },
@@ -313,7 +313,7 @@ export function rpopList<T>(type: ValkeyIndexType<T>) {
   };
 }
 
-export function indexList<T>(type: ValkeyIndexType<T>) {
+export function indexList<T>(type: ValkeyType<T>) {
   return async function index(
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, index }: { key: string; index: number },

@@ -3,7 +3,7 @@ import SuperJSON from "superjson";
 const DEFAULT_FROM_STRING = SuperJSON.parse;
 const DEFAULT_TO_STRING = SuperJSON.stringify;
 
-export type ValkeyIndexType<T> = {
+export type ValkeyType<T> = {
   fromString: (input: string) => T;
   fromStringMap: (input: Record<string, string | undefined>) => Partial<T>;
   toString: (input: T) => string;
@@ -18,10 +18,10 @@ export type ToValkey<T> = (input: T) => string;
 export type FromValkeyMap<T> = { [R in keyof T]: FromValkey<T[R]> };
 export type ToValkeyMap<T> = { [R in keyof T]: ToValkey<T[R]> };
 
-export function ValkeyIndexType<T>(
+export function ValkeyType<T>(
   fromString?: FromValkey<T> | FromValkeyMap<T>,
   toString?: ToValkey<T> | ToValkeyMap<T>,
-): ValkeyIndexType<T> {
+): ValkeyType<T> {
   return {
     fromString:
       fromString instanceof Function
