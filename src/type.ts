@@ -20,7 +20,7 @@ function DEFAULT_FROM_STRING_MAP<T>(input: Record<string, string | undefined>) {
     Object.entries(input).map(([key, val]) => {
       return [key, val ? DEFAULT_FROM_STRING(val) : val];
     }),
-  ) as Partial<T>;
+  ) as T;
 }
 
 export type Constructable<T> = ((input: string) => T | undefined) & {
@@ -32,9 +32,9 @@ export type ToString<T> = (input: T) => string;
 
 export type FromStringMap<T> = (
   input: Record<string, string | undefined>,
-) => Partial<T> | undefined;
+) => T | undefined;
 export type ToStringMap<T> = (
-  input: T,
+  input: Partial<T>,
 ) => Record<string, string | undefined> | undefined;
 
 export type ValkeyType<T> = {

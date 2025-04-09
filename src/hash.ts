@@ -29,14 +29,14 @@ export type ValkeyHashGet<T, R extends keyof T> = {
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<Partial<T> | undefined>;
+  }): Promise<T | undefined>;
   (arg: {
     relation: R;
     fkey: KeyPart;
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<Record<R, Partial<T> | undefined>>;
+  }): Promise<Record<R, T | undefined>>;
 };
 
 export type ValkeyHashSet<T> = (arg: {
@@ -62,7 +62,7 @@ export type ValkeyHashIndexOps<T, R extends keyof T> = {
 export type ValkeyHashGetHandler<T> = (
   ctx: { valkey: Redis },
   arg: { key: string; fields?: (keyof T)[] },
-) => Promise<Partial<T> | undefined>;
+) => Promise<T | undefined>;
 
 export type ValkeyHashSetHandler<T, R extends keyof T> = (
   ctx: ValkeyIndexerContext<T, R>,
@@ -161,7 +161,7 @@ export function ValkeyHashIndex<
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<Partial<T> | undefined>;
+  }): Promise<T | undefined>;
 
   async function get(arg: {
     relation: R;
@@ -169,7 +169,7 @@ export function ValkeyHashIndex<
     fields?: (keyof T)[];
     ttl?: Date | number;
     message?: string;
-  }): Promise<Record<R, Partial<T> | undefined>>;
+  }): Promise<Record<R, T | undefined>>;
 
   async function get(
     arg: ValkeyIndexRef<T, R> & {
