@@ -51,7 +51,7 @@ export type ValkeyListRpop<T> = (arg: {
 export type ValkeyListIndex<T> = (arg: {
   pkey: KeyPart;
   index: number;
-}) => Promise<T | null>;
+}) => Promise<T | null | undefined>;
 
 export type ValkeyListTrim<T> = (arg: {
   pkey: KeyPart;

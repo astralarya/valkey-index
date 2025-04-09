@@ -4,7 +4,7 @@ const DEFAULT_FROM_STRING = SuperJSON.parse;
 const DEFAULT_TO_STRING = SuperJSON.stringify;
 
 export type ValkeyType<T> = {
-  fromString: (input: string) => T;
+  fromString: (input: string) => T | undefined;
   fromStringMap: (input: Record<string, string | undefined>) => Partial<T>;
   toString: (input: T) => string;
   toStringMap: (
@@ -12,7 +12,9 @@ export type ValkeyType<T> = {
   ) => Record<string, string | undefined> | undefined;
 };
 
-export type FromString<T> = (input: string) => T & { toString?: () => string };
+export type FromString<T> = (
+  input: string,
+) => (T & { toString?: () => string }) | undefined;
 export type ToString<T> = (input: T) => string;
 
 export type FromStringMap<T> = { [R in keyof T]: FromString<T[R]> };
