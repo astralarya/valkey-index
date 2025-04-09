@@ -3,6 +3,26 @@ import SuperJSON from "superjson";
 const DEFAULT_FROM_STRING = SuperJSON.parse;
 const DEFAULT_TO_STRING = SuperJSON.stringify;
 
+function DEFAULT_TO_STRING_MAP<T>(input: T) {
+  if (!input) {
+    return {};
+  } else if (typeof input === "object") {
+    return Object.fromEntries(
+      Object.entries(input).map(([key, val]) => {
+        return [key, DEFAULT_TO_STRING(val)];
+      }),
+    );
+  }
+}
+
+function DEFAULT_FROM_STRING_MAP<T>(input: Record<string, string | undefined>) {
+  return Object.fromEntries(
+    Object.entries(input).map(([key, val]) => {
+      return [key, val ? DEFAULT_FROM_STRING(val) : val];
+    }),
+  ) as Partial<T>;
+}
+
 export type Constructable<T> = ((input: string) => T | undefined) & {
   toString?: () => string;
 };
@@ -37,47 +57,23 @@ export function ValkeyType<T>(props?: ValkeyTypeProps<T>): ValkeyType<T> {
   if (props === undefined) {
     return {
       fromString: DEFAULT_FROM_STRING,
-      fromStringMap: deserializeRecord(),
+      fromStringMap: DEFAULT_FROM_STRING_MAP,
       toString: DEFAULT_TO_STRING,
-      toStringMap: serializeRecord(),
+      toStringMap: DEFAULT_TO_STRING_MAP,
     };
   } else if (props instanceof Function) {
     return {
       fromString: props,
-      fromStringMap: deserializeRecord(),
+      fromStringMap: DEFAULT_FROM_STRING_MAP,
       toString: props.toString ? props.toString : DEFAULT_TO_STRING,
-      toStringMap: serializeRecord(),
+      toStringMap: DEFAULT_TO_STRING_MAP,
     };
   } else {
     return {
       fromString: props.fromString ?? DEFAULT_FROM_STRING,
-      fromStringMap: deserializeRecord(),
+      fromStringMap: props.fromStringMap ?? DEFAULT_FROM_STRING_MAP,
       toString: props.toString ?? DEFAULT_TO_STRING,
-      toStringMap: serializeRecord(),
+      toStringMap: props.toStringMap ?? DEFAULT_TO_STRING_MAP,
     };
   }
-}
-
-function serializeRecord() {
-  return function serialize<T>(input: T) {
-    if (!input) {
-      return {};
-    } else if (typeof input === "object") {
-      return Object.fromEntries(
-        Object.entries(input).map(([key, val]) => {
-          return [key, DEFAULT_TO_STRING(val)];
-        }),
-      );
-    }
-  };
-}
-
-function deserializeRecord() {
-  return function deserialize<T>(input: Record<string, string | undefined>) {
-    return Object.fromEntries(
-      Object.entries(input).map(([key, val]) => {
-        return [key, val ? DEFAULT_FROM_STRING(val) : val];
-      }),
-    ) as Partial<T>;
-  };
 }
