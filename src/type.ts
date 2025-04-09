@@ -12,15 +12,15 @@ export type ValkeyType<T> = {
   ) => Record<string, string | undefined> | undefined;
 };
 
-export type FromValkey<T> = (input: string) => T & { toString?: () => string };
-export type ToValkey<T> = (input: T) => string;
+export type FromString<T> = (input: string) => T & { toString?: () => string };
+export type ToString<T> = (input: T) => string;
 
-export type FromValkeyMap<T> = { [R in keyof T]: FromValkey<T[R]> };
-export type ToValkeyMap<T> = { [R in keyof T]: ToValkey<T[R]> };
+export type FromStringMap<T> = { [R in keyof T]: FromString<T[R]> };
+export type ToStringMap<T> = { [R in keyof T]: ToString<T[R]> };
 
 export function ValkeyType<T>(
-  fromString?: FromValkey<T> | FromValkeyMap<T>,
-  toString?: ToValkey<T> | ToValkeyMap<T>,
+  fromString?: FromString<T> | FromStringMap<T>,
+  toString?: ToString<T> | ToStringMap<T>,
 ): ValkeyType<T> {
   return {
     fromString:
@@ -30,7 +30,7 @@ export function ValkeyType<T>(
     fromStringMap: deserializeRecord(
       fromString && !(fromString instanceof Function)
         ? fromString
-        : ({} as FromValkeyMap<T>),
+        : ({} as FromStringMap<T>),
     ),
     toString:
       toString instanceof Function
@@ -39,12 +39,12 @@ export function ValkeyType<T>(
     toStringMap: serializeRecord(
       toString && !(toString instanceof Function)
         ? toString
-        : ({} as ToValkeyMap<T>),
+        : ({} as ToStringMap<T>),
     ),
   };
 }
 
-function serializeRecord<T>(record: ToValkeyMap<T>) {
+function serializeRecord<T>(record: ToStringMap<T>) {
   return function serialize<T>(input: T) {
     if (!input) {
       return {};
@@ -61,7 +61,7 @@ function serializeRecord<T>(record: ToValkeyMap<T>) {
   };
 }
 
-function deserializeRecord<T>(record: FromValkeyMap<T>) {
+function deserializeRecord<T>(record: FromStringMap<T>) {
   return function deserialize<T>(input: Record<string, string | undefined>) {
     return Object.fromEntries(
       Object.entries(input).map(([key, val]) => {
