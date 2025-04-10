@@ -65,7 +65,9 @@ export function ValkeyType<T>(props?: ValkeyTypeProps<T>): ValkeyType<T> {
     return {
       fromString: props,
       fromStringMap: DEFAULT_FROM_STRING_MAP,
-      toString: props.toString ? props.toString : DEFAULT_TO_STRING,
+      toString: props.toString
+        ? (input: T) => (input as { toString: () => string }).toString()
+        : DEFAULT_TO_STRING,
       toStringMap: DEFAULT_TO_STRING_MAP,
     };
   } else {
