@@ -1,5 +1,5 @@
 import { ValkeyHashIndex, ValkeyType } from "../src";
-import { useBeforeEach, valkey } from "./index.test";
+import { useBeforeEach, valkey } from ".";
 
 useBeforeEach();
 

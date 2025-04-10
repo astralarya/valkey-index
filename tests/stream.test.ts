@@ -1,5 +1,5 @@
 import { ValkeyType, ValkeyStreamIndex } from "../src";
-import { useBeforeEach, valkey, type TestObject } from "./index.test";
+import { useBeforeEach, valkey, type TestObject } from ".";
 
 useBeforeEach();
 

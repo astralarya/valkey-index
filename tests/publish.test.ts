@@ -1,6 +1,6 @@
 import { sleep } from "bun";
 import { ValkeyHashIndex, ValkeyType } from "../src";
-import { useBeforeEach, valkey, type TestObject } from "./index.test";
+import { useBeforeEach, valkey, type TestObject } from ".";
 
 useBeforeEach();
 
