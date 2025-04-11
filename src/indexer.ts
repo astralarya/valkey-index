@@ -35,7 +35,7 @@ export type ValkeyIndexRelations<T, R extends keyof T> = Record<
   KeyPart | KeyPart[] | undefined
 >;
 
-export type ValkeyIndexEvent<T, R extends keyof T> = {
+export type ValkeyIndexEvent<T> = {
   source: ValkeyIndexGlobalRef;
   message: string;
 };
@@ -80,7 +80,7 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
       signal?: AbortSignal;
       test?: string | RegExp;
     },
-  ) => AsyncGenerator<ValkeyIndexEvent<T, R>>;
+  ) => AsyncGenerator<ValkeyIndexEvent<T>>;
   touch: (
     pipeline: ChainableCommander,
     arg: {
@@ -523,9 +523,9 @@ export function stringifyRef(ref: ValkeyIndexGlobalRef) {
   }
 }
 
-export function parseEvent<T, R extends keyof T>(data: string) {
+export function parseEvent<T>(data: string) {
   const { source, message } = JSON.parse(data) as Omit<
-    ValkeyIndexEvent<T, R>,
+    ValkeyIndexEvent<T>,
     "source"
   > & {
     source: string;
