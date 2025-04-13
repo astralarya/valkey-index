@@ -39,37 +39,40 @@ export function typedTuple<T extends readonly any[] = []>(
   };
 }
 
-// Example usage:
-// Homogeneous - becomes number[]
-const homogeneous = typedTuple().add(1).add(2).add(3).build();
-// Heterogeneous - becomes readonly [number, string]
-const heterogeneous = typedTuple().add(1).add("string").build();
-// Many
-const many = typedTuple().add(1).addMany([2, 3]).build();
-// Complex with addMany
-const complex = typedTuple()
-  .add(1)
-  .addMany([2, 3] as const)
-  .add("string")
-  .build();
-// tricky
-const tricky = typedTuple().add(1).add(2).add(3).add("ababa").build();
-
-// With objects
-interface User {
-  id: number;
-  name: string;
+export function typedObject<T extends Record<string, any> = {}>(
+  initialObject: T = {} as T,
+) {
+  return {
+    add<K extends string, V>(key: K, value: V) {
+      return typedObject({
+        ...initialObject,
+        [key]: value,
+      } as T & { [P in K]: V });
+    },
+    addMany<U extends Record<string, any>>(obj: U) {
+      return typedObject({
+        ...initialObject,
+        ...obj,
+      } as T & U);
+    },
+    build() {
+      return initialObject;
+    },
+    remove<K extends keyof T>(key: K) {
+      const { [key]: _, ...rest } = initialObject;
+      return typedObject(rest as Omit<T, K>);
+    },
+    update<K extends keyof T, V>(key: K, updater: (currentValue: T[K]) => V) {
+      return typedObject({
+        ...initialObject,
+        [key]: updater(initialObject[key]),
+      } as Omit<T, K> & { [P in K]: V });
+    },
+    replace<K extends keyof T, V>(key: K, value: V) {
+      return typedObject({
+        ...initialObject,
+        [key]: value,
+      } as Omit<T, K> & { [P in K]: V });
+    },
+  };
 }
-interface Admin {
-  id: number;
-  name: string;
-  permissions: string[];
-}
-const user1: User = { id: 1, name: "Alice" };
-const user2: User = { id: 2, name: "Bob" };
-const admin: Admin = { id: 3, name: "Charlie", permissions: ["all"] };
-
-// Homogeneous objects - becomes User[]
-const homogeneousObjects = typedTuple().add(user1).add(user2).build();
-// Heterogeneous objects - becomes readonly [User, Admin]
-const heterogeneousObjects = typedTuple().add(user1).add(admin).build();
