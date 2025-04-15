@@ -23,7 +23,7 @@ export function ValkeyPipeline(valkey: Redis) {
   function add<T>(label: string, action: ValkeyPipelineAction<T>) {
     const getter = action(pipeline);
     if (label in getters) {
-      getters.label?.push(getter);
+      getters[label]!.push(getter);
     } else {
       getters[label] = [getter];
     }
@@ -36,9 +36,7 @@ export function ValkeyPipeline(valkey: Redis) {
     }
     const values: Record<string, any[]> = {};
     Object.entries(getters).forEach(([label, list]) => {
-      values[label] = list.map((getter) => {
-        getter(results);
-      });
+      values[label] = list.map((getter) => getter(results));
     });
     return values as T;
   }
