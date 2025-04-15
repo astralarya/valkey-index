@@ -40,12 +40,12 @@ export type ValkeyListPop<T> = (arg: {
 export type ValkeyListRpush<T> = (arg: {
   pkey: KeyPart;
   input: T;
-}) => Promise<void>;
+}) => Promise<number>;
 
 export type ValkeyListRpushx<T> = (arg: {
   pkey: KeyPart;
   input: T[];
-}) => Promise<void>;
+}) => Promise<number>;
 
 export type ValkeyListRpop<T> = (arg: {
   pkey: KeyPart;
@@ -89,10 +89,46 @@ export type ValkeyListPushxPipe<T> = (arg: {
   input: T[];
 }) => ValkeyPipelineAction<number>;
 
+export type ValkeyListPopPipe<T> = (arg: {
+  pkey: KeyPart;
+}) => ValkeyPipelineAction<T | undefined>;
+
+export type ValkeyListRpushPipe<T> = (arg: {
+  pkey: KeyPart;
+  input: T;
+}) => ValkeyPipelineAction<void>;
+
+export type ValkeyListRpushxPipe<T> = (arg: {
+  pkey: KeyPart;
+  input: T[];
+}) => ValkeyPipelineAction<void>;
+
+export type ValkeyListRpopPipe<T> = (arg: {
+  pkey: KeyPart;
+}) => ValkeyPipelineAction<T | undefined>;
+
+export type ValkeyListIndexPipe<T> = (arg: {
+  pkey: KeyPart;
+  index: number;
+}) => ValkeyPipelineAction<T | null | undefined>;
+
+export type ValkeyListTrimPipe<T> = (arg: {
+  pkey: KeyPart;
+  start: number;
+  stop: number;
+  pipeline?: ChainableCommander;
+}) => ValkeyPipelineAction<void>;
+
 export type ValkeyListIndexPipes<T> = {
   len: ValkeyListLenPipe;
   push: ValkeyListPushPipe<T>;
   pushx: ValkeyListPushxPipe<T>;
+  pop: ValkeyListPopPipe<T>;
+  rpush: ValkeyListRpushPipe<T>;
+  rpushx: ValkeyListRpushxPipe<T>;
+  rpop: ValkeyListRpopPipe<T>;
+  index: ValkeyListIndexPipe<T>;
+  trim: ValkeyListTrimPipe<T>;
 };
 
 export type ValkeyListLenHandler<T> = (
@@ -118,12 +154,12 @@ export type ValkeyListPopHandler<T> = (
 export type ValkeyListRpushHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string; input: T },
-) => Promise<void>;
+) => Promise<number>;
 
 export type ValkeyListRpushxHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string; input: T[] },
-) => Promise<void>;
+) => Promise<number>;
 
 export type ValkeyListRpopHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -172,10 +208,51 @@ export type ValkeyListPushxPiper<T> = (
   arg: { key: string; input: T[] },
 ) => ValkeyPipelineAction<number>;
 
+export type ValkeyListPopPiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string },
+) => ValkeyPipelineAction<T | undefined>;
+
+export type ValkeyListRpushPiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string; input: T },
+) => ValkeyPipelineAction<void>;
+
+export type ValkeyListRpushxPiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string; input: T[] },
+) => ValkeyPipelineAction<void>;
+
+export type ValkeyListRpopPiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string },
+) => ValkeyPipelineAction<T | undefined>;
+
+export type ValkeyListIndexPiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: { key: string; index: number },
+) => ValkeyPipelineAction<T | null>;
+
+export type ValkeyListTrimPiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: {
+    key: string;
+    start: number;
+    stop: number;
+    pipeline?: ChainableCommander;
+  },
+) => ValkeyPipelineAction<void>;
+
 export type ValkeyListIndexPipers<T> = {
   len: ValkeyListLenPiper<T>;
   push: ValkeyListPushPiper<T>;
   pushx: ValkeyListPushxPiper<T>;
+  pop: ValkeyListPopPiper<T>;
+  rpush: ValkeyListRpushPiper<T>;
+  rpushx: ValkeyListRpushxPiper<T>;
+  rpop: ValkeyListRpopPiper<T>;
+  index: ValkeyListIndexPiper<T>;
+  trim: ValkeyListTrimPiper<T>;
 };
 
 export type ValkeyListIndexInterface<T> = ValkeyIndexerReturn<T, never> &
@@ -202,7 +279,17 @@ export function ValkeyListIndex<
   rpop: rpop__,
   index: index__,
   trim: trim__,
-  pipe: { len: len_pipe__, push: push_pipe__, pushx: pushx_pipe__ } = {},
+  pipe: {
+    len: len_pipe__,
+    push: push_pipe__,
+    pushx: pushx_pipe__,
+    pop: pop_pipe__,
+    rpush: rpush_pipe__,
+    rpushx: rpushx_pipe__,
+    rpop: rpop_pipe__,
+    index: index_pipe__,
+    trim: trim_pipe__,
+  } = {},
 }: ValkeyListIndexProps<T, F>) {
   const len_ = len__ || lenList();
   const push_ = push__ || pushList(type);
@@ -214,9 +301,15 @@ export function ValkeyListIndex<
   const index_ = index__ || indexList(type);
   const trim_ = trim__ || trimList();
 
-  const pipe_len_ = len_pipe__ || lenList_pipe();
-  const pipe_push_ = push_pipe__ || pushList_pipe(type);
-  const pipe_pushx_ = pushx_pipe__ || pushxList_pipe(type);
+  const len_pipe_ = len_pipe__ || lenList_pipe();
+  const push_pipe_ = push_pipe__ || pushList_pipe(type);
+  const pushx_pipe_ = pushx_pipe__ || pushxList_pipe(type);
+  const pop_pipe_ = pop_pipe__ || popList_pipe(type);
+  const rpush_pipe_ = rpush_pipe__ || rpushList_pipe(type);
+  const rpushx_pipe_ = rpushx_pipe__ || rpushxList_pipe(type);
+  const rpop_pipe_ = rpop_pipe__ || rpopList_pipe(type);
+  const index_pipe_ = index_pipe__ || indexList_pipe(type);
+  const trim_pipe_ = trim_pipe__ || trimList_pipe();
 
   const indexer = ValkeyIndexer<T, never>({
     valkey,
@@ -242,11 +335,11 @@ export function ValkeyListIndex<
   }
 
   async function rpush({ pkey, input }: { pkey: KeyPart; input: T }) {
-    rpush_(indexer, { key: indexer.key({ pkey }), input });
+    return rpush_(indexer, { key: indexer.key({ pkey }), input });
   }
 
   async function rpushx({ pkey, input }: { pkey: KeyPart; input: T[] }) {
-    rpushx_(indexer, { key: indexer.key({ pkey }), input });
+    return rpushx_(indexer, { key: indexer.key({ pkey }), input });
   }
 
   async function rpop({ pkey }: { pkey: KeyPart }) {
@@ -276,16 +369,55 @@ export function ValkeyListIndex<
     });
   }
 
-  function pipe_len({ pkey }: { pkey: KeyPart }) {
-    return pipe_len_(indexer, { key: indexer.key({ pkey }) });
+  function len_pipe({ pkey }: { pkey: KeyPart }) {
+    return len_pipe_(indexer, { key: indexer.key({ pkey }) });
   }
 
-  function pipe_push({ pkey, input }: { pkey: KeyPart; input: T }) {
-    return pipe_push_(indexer, { key: indexer.key({ pkey }), input });
+  function push_pipe({ pkey, input }: { pkey: KeyPart; input: T }) {
+    return push_pipe_(indexer, { key: indexer.key({ pkey }), input });
   }
 
-  function pipe_pushx({ pkey, input }: { pkey: KeyPart; input: T[] }) {
-    return pipe_pushx_(indexer, { key: indexer.key({ pkey }), input });
+  function pushx_pipe({ pkey, input }: { pkey: KeyPart; input: T[] }) {
+    return pushx_pipe_(indexer, { key: indexer.key({ pkey }), input });
+  }
+
+  function pop_pipe({ pkey }: { pkey: KeyPart }) {
+    return pop_pipe_(indexer, { key: indexer.key({ pkey }) });
+  }
+
+  function rpush_pipe({ pkey, input }: { pkey: KeyPart; input: T }) {
+    return rpush_pipe_(indexer, { key: indexer.key({ pkey }), input });
+  }
+
+  function rpushx_pipe({ pkey, input }: { pkey: KeyPart; input: T[] }) {
+    return rpushx_pipe_(indexer, { key: indexer.key({ pkey }), input });
+  }
+
+  function rpop_pipe({ pkey }: { pkey: KeyPart }) {
+    return rpop_pipe_(indexer, { key: indexer.key({ pkey }) });
+  }
+
+  function index_pipe({ pkey, index }: { pkey: KeyPart; index: number }) {
+    return index_pipe_(indexer, { key: indexer.key({ pkey }), index });
+  }
+
+  function trim_pipe({
+    pkey,
+    start,
+    stop,
+    pipeline,
+  }: {
+    pkey: KeyPart;
+    start: number;
+    stop: number;
+    pipeline?: ChainableCommander;
+  }) {
+    return trim_pipe_(indexer, {
+      key: indexer.key({ pkey }),
+      start,
+      stop,
+      pipeline,
+    });
   }
 
   const ops: ValkeyListIndexInterface<T> = {
@@ -300,9 +432,15 @@ export function ValkeyListIndex<
     index,
     trim,
     pipe: {
-      len: pipe_len,
-      push: pipe_push,
-      pushx: pipe_pushx,
+      len: len_pipe,
+      push: push_pipe,
+      pushx: pushx_pipe,
+      pop: pop_pipe,
+      rpush: rpush_pipe,
+      rpushx: rpushx_pipe,
+      rpop: rpop_pipe,
+      index: index_pipe,
+      trim: trim_pipe,
     },
   };
 
@@ -354,8 +492,7 @@ export function rpushList<T>(type: ValkeyType<T>) {
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T },
   ) {
-    await valkey.rpush(key, type.toString(input));
-    return;
+    return await valkey.rpush(key, type.toString(input));
   };
 }
 
@@ -364,8 +501,7 @@ export function rpushxList<T>(type: ValkeyType<T>) {
     { valkey }: ValkeyIndexerReturn<T, never>,
     { key, input }: { key: string; input: T[] },
   ) {
-    await valkey.rpushx(key, ...input.map(type.toString));
-    return;
+    return await valkey.rpushx(key, ...input.map(type.toString));
   };
 }
 
@@ -452,6 +588,107 @@ export function pushxList_pipe<T>(type: ValkeyType<T>) {
       pipeline.lpushx(key, ...input.map(type.toString));
       return function getter(results: ValkeyPipelineResult) {
         return results[idx]?.[1] as number;
+      };
+    };
+  };
+}
+
+export function popList_pipe<T>(type: ValkeyType<T>) {
+  return function pop(
+    _: ValkeyIndexerReturn<T, never>,
+    { key }: { key: string },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const idx = pipeline.length;
+      pipeline.lpop(key);
+      return function getter(results: ValkeyPipelineResult) {
+        const value = results[idx]?.[1] as string;
+        return value ? type.fromString(value) : undefined;
+      };
+    };
+  };
+}
+
+export function rpushList_pipe<T>(type: ValkeyType<T>) {
+  return function push(
+    _: ValkeyIndexerReturn<T, never>,
+    { key, input }: { key: string; input: T },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const idx = pipeline.length;
+      pipeline.rpush(key, type.toString(input));
+      return function getter(results: ValkeyPipelineResult) {
+        return results[idx]?.[1] as number;
+      };
+    };
+  };
+}
+
+export function rpushxList_pipe<T>(type: ValkeyType<T>) {
+  return function rpushx(
+    _: ValkeyIndexerReturn<T, never>,
+    { key, input }: { key: string; input: T[] },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const idx = pipeline.length;
+      pipeline.rpushx(key, ...input.map(type.toString));
+      return function getter(results: ValkeyPipelineResult) {
+        return results[idx]?.[1] as number;
+      };
+    };
+  };
+}
+
+export function rpopList_pipe<T>(type: ValkeyType<T>) {
+  return function pop(
+    _: ValkeyIndexerReturn<T, never>,
+    { key }: { key: string },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const idx = pipeline.length;
+      pipeline.rpop(key);
+      return function getter(results: ValkeyPipelineResult) {
+        const value = results[idx]?.[1] as string;
+        return value ? type.fromString(value) : undefined;
+      };
+    };
+  };
+}
+
+export function indexList_pipe<T>(type: ValkeyType<T>) {
+  return function index(
+    _: ValkeyIndexerReturn<T, never>,
+    { key, index }: { key: string; index: number },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const idx = pipeline.length;
+      pipeline.lindex(key, index);
+      return function getter(results: ValkeyPipelineResult) {
+        const value = results[idx]?.[1] as string;
+        return value ? type.fromString(value) : undefined;
+      };
+    };
+  };
+}
+
+export function trimList_pipe<T>() {
+  return function index(
+    _: ValkeyIndexerReturn<T, never>,
+    {
+      key,
+      start,
+      stop,
+    }: {
+      key: string;
+      start: number;
+      stop: number;
+    },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const idx = pipeline.length;
+      pipeline.ltrim(key, start, stop);
+      return function getter(results: ValkeyPipelineResult) {
+        return;
       };
     };
   };
