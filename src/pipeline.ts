@@ -1,4 +1,4 @@
-import type { ChainableCommander } from "iovalkey";
+import type { ChainableCommander, Redis } from "iovalkey";
 
 export type ValkeyPipelineProps = {
   pipeline: ChainableCommander;
@@ -16,7 +16,8 @@ export type ValkeyPipelineGetter<T> = (
 
 type ValkeyPipelineGetters = Record<string, ValkeyPipelineGetter<any>[]>;
 
-export function ValkeyPipeline({ pipeline }: ValkeyPipelineProps) {
+export function ValkeyPipeline(valkey: Redis) {
+  const pipeline = valkey.pipeline();
   const getters: ValkeyPipelineGetters = {};
 
   function add<T>(label: string, action: ValkeyPipelineAction<T>) {
