@@ -8,6 +8,8 @@ export type ValkeyPipelineAction<T> = (
   pipeline: ChainableCommander,
 ) => ValkeyPipelineGetter<T>;
 
+export type ValkeyPipelineResult = [error: Error | null, result: unknown][];
+
 export type ValkeyPipelineGetter<T> = (
   results: [error: Error | null, result: unknown][],
 ) => T;
