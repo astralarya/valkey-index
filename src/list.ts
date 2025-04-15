@@ -35,7 +35,7 @@ export type ValkeyListPushx<T> = (arg: {
 
 export type ValkeyListPop<T> = (arg: {
   pkey: KeyPart;
-}) => Promise<T | undefined>;
+}) => Promise<T | null | undefined>;
 
 export type ValkeyListRpush<T> = (arg: {
   pkey: KeyPart;
@@ -49,7 +49,7 @@ export type ValkeyListRpushx<T> = (arg: {
 
 export type ValkeyListRpop<T> = (arg: {
   pkey: KeyPart;
-}) => Promise<T | undefined>;
+}) => Promise<T | null | undefined>;
 
 export type ValkeyListIndex<T> = (arg: {
   pkey: KeyPart;
@@ -91,7 +91,7 @@ export type ValkeyListPushxPipe<T> = (arg: {
 
 export type ValkeyListPopPipe<T> = (arg: {
   pkey: KeyPart;
-}) => ValkeyPipelineAction<T | undefined>;
+}) => ValkeyPipelineAction<T | null | undefined>;
 
 export type ValkeyListRpushPipe<T> = (arg: {
   pkey: KeyPart;
@@ -105,7 +105,7 @@ export type ValkeyListRpushxPipe<T> = (arg: {
 
 export type ValkeyListRpopPipe<T> = (arg: {
   pkey: KeyPart;
-}) => ValkeyPipelineAction<T | undefined>;
+}) => ValkeyPipelineAction<T | null | undefined>;
 
 export type ValkeyListIndexPipe<T> = (arg: {
   pkey: KeyPart;
@@ -149,7 +149,7 @@ export type ValkeyListPushxHandler<T> = (
 export type ValkeyListPopHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string },
-) => Promise<T | undefined>;
+) => Promise<T | null>;
 
 export type ValkeyListRpushHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -164,7 +164,7 @@ export type ValkeyListRpushxHandler<T> = (
 export type ValkeyListRpopHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string },
-) => Promise<T | undefined>;
+) => Promise<T | null>;
 
 export type ValkeyListIndexHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -211,7 +211,7 @@ export type ValkeyListPushxPiper<T> = (
 export type ValkeyListPopPiper<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string },
-) => ValkeyPipelineAction<T | undefined>;
+) => ValkeyPipelineAction<T | null>;
 
 export type ValkeyListRpushPiper<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -226,7 +226,7 @@ export type ValkeyListRpushxPiper<T> = (
 export type ValkeyListRpopPiper<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: { key: string },
-) => ValkeyPipelineAction<T | undefined>;
+) => ValkeyPipelineAction<T | null>;
 
 export type ValkeyListIndexPiper<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -483,7 +483,7 @@ export function popList<T>(type: ValkeyType<T>) {
     { key }: { key: string },
   ) {
     const value = await valkey.lpop(key);
-    return value ? type.fromString(value) : undefined;
+    return value === null ? null : type.fromString(value);
   };
 }
 
@@ -511,7 +511,7 @@ export function rpopList<T>(type: ValkeyType<T>) {
     { key }: { key: string },
   ) {
     const value = await valkey.rpop(key);
-    return value ? type.fromString(value) : undefined;
+    return value === null ? null : type.fromString(value);
   };
 }
 
@@ -521,7 +521,7 @@ export function indexList<T>(type: ValkeyType<T>) {
     { key, index }: { key: string; index: number },
   ) {
     const value = await valkey.lindex(key, index);
-    return value ? type.fromString(value) : null;
+    return value === null ? null : type.fromString(value);
   };
 }
 
@@ -603,7 +603,7 @@ export function popList_pipe<T>(type: ValkeyType<T>) {
       pipeline.lpop(key);
       return function getter(results: ValkeyPipelineResult) {
         const value = results[idx]?.[1] as string;
-        return value ? type.fromString(value) : undefined;
+        return value === null ? null : type.fromString(value);
       };
     };
   };
@@ -649,7 +649,7 @@ export function rpopList_pipe<T>(type: ValkeyType<T>) {
       pipeline.rpop(key);
       return function getter(results: ValkeyPipelineResult) {
         const value = results[idx]?.[1] as string;
-        return value ? type.fromString(value) : undefined;
+        return value === null ? null : type.fromString(value);
       };
     };
   };
@@ -665,7 +665,7 @@ export function indexList_pipe<T>(type: ValkeyType<T>) {
       pipeline.lindex(key, index);
       return function getter(results: ValkeyPipelineResult) {
         const value = results[idx]?.[1] as string;
-        return value ? type.fromString(value) : undefined;
+        return value === null ? null : type.fromString(value);
       };
     };
   };
