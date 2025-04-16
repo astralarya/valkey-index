@@ -354,18 +354,15 @@ export function ValkeyListIndex<
     pkey,
     start,
     stop,
-    pipeline,
   }: {
     pkey: KeyPart;
     start: number;
     stop: number;
-    pipeline?: ChainableCommander;
   }) {
     return trim_(indexer, {
       key: indexer.key({ pkey }),
       start,
       stop,
-      pipeline,
     });
   }
 
@@ -405,18 +402,15 @@ export function ValkeyListIndex<
     pkey,
     start,
     stop,
-    pipeline,
   }: {
     pkey: KeyPart;
     start: number;
     stop: number;
-    pipeline?: ChainableCommander;
   }) {
     return trim_pipe_(indexer, {
       key: indexer.key({ pkey }),
       start,
       stop,
-      pipeline,
     });
   }
 
@@ -532,19 +526,13 @@ export function trimList<T>() {
       key,
       start,
       stop,
-      pipeline,
     }: {
       key: string;
       start: number;
       stop: number;
-      pipeline?: ChainableCommander;
     },
   ) {
-    if (pipeline) {
-      pipeline.ltrim(key, start, stop);
-    } else {
-      await valkey.ltrim(key, start, stop);
-    }
+    await valkey.ltrim(key, start, stop);
   };
 }
 
