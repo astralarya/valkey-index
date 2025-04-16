@@ -10,12 +10,12 @@ const relationIndex = ValkeyHashIndex({
   relations: ["bar", "baz"],
   functions: {
     use: async ({ get, update }, { pkey }: { pkey: KeyPart }) => {
-      const val = await get!({ pkey });
+      const val = await get({ pkey });
       if (val?.baz === undefined) {
         return;
       }
       const next = val.baz + 1;
-      await update!({ pkey, input: { baz: next } });
+      await update({ pkey, input: { baz: next } });
       return next;
     },
   },

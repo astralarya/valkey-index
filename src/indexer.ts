@@ -30,10 +30,7 @@ export type ValkeyIndexGlobalRef = {
     }
 );
 
-export type ValkeyIndexRelations<T, R extends keyof T> = Record<
-  R,
-  KeyPart | KeyPart[] | undefined
->;
+export type ValkeyIndexRelations<T, R extends keyof T> = Record<R, KeyPart[]>;
 
 export type ValkeyIndexEvent<T> = {
   source: ValkeyIndexGlobalRef;
@@ -98,7 +95,7 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
       curr?: ValkeyIndexRelations<T, R>;
       next?: ValkeyIndexRelations<T, R>;
     },
-  ) => Promise<void>;
+  ) => void;
   del: (arg: ValkeyIndexRef<T, R>) => Promise<void>;
 };
 
@@ -146,15 +143,11 @@ export function ValkeyIndexer<T, R extends keyof T>({
     const relations = await getRelations(ref);
     for (const [relation, fkey] of Object.entries(relations) as [
       R,
-      KeyPart | KeyPart[] | undefined,
+      KeyPart[],
     ][]) {
-      if (Array.isArray(fkey)) {
-        fkey.forEach((item) => {
-          func({ fkey: item, relation });
-        });
-      } else if (fkey !== undefined) {
-        func({ fkey, relation });
-      }
+      fkey.forEach((item) => {
+        func({ fkey: item, relation });
+      });
     }
   }
 
@@ -294,7 +287,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     }
   }
 
-  async function touchRelated(
+  function touchRelated(
     pipeline: ChainableCommander,
     {
       pkey,
@@ -311,47 +304,25 @@ export function ValkeyIndexer<T, R extends keyof T>({
     },
   ) {
     touch(pipeline, { pkey, ttl: ttl_, message });
-    const rm = curr && next && diffRelations({ curr, next });
+    const rm = diffRelations({ curr, next });
     if (rm) {
-      for (const [relation, fkey] of Object.entries(rm) as [
-        R,
-        KeyPart | KeyPart[] | undefined,
-      ][]) {
-        if (Array.isArray(fkey)) {
-          fkey.forEach((item) => {
-            pipeline.zrem(key({ fkey: item, relation }), String(pkey));
-          });
-        } else if (fkey !== undefined) {
-          pipeline.zrem(key({ fkey, relation }), String(pkey));
-        }
+      for (const [relation, fkey] of Object.entries(rm) as [R, KeyPart[]][]) {
+        fkey.forEach((item) => {
+          pipeline.zrem(key({ fkey: item, relation }), String(pkey));
+        });
       }
     }
-    const relations =
-      next !== undefined ? next : await getRelations?.({ pkey });
-    if (relations) {
-      for (const [relation, fkey] of Object.entries(relations) as [
-        R,
-        KeyPart | KeyPart[] | undefined,
-      ][]) {
-        if (Array.isArray(fkey)) {
-          fkey.forEach((item) => {
-            _touch_related(pipeline, {
-              relation,
-              pkey,
-              fkey: item,
-              ttl: ttl_,
-              message,
-            });
-          });
-        } else if (fkey !== undefined) {
+    if (next) {
+      for (const [relation, fkey] of Object.entries(next) as [R, KeyPart[]][]) {
+        fkey.forEach((item) => {
           _touch_related(pipeline, {
             relation,
             pkey,
-            fkey,
+            fkey: item,
             ttl: ttl_,
             message,
           });
-        }
+        });
       }
     }
   }
@@ -427,47 +398,28 @@ export function diffRelations<T, R extends keyof T>({
   curr,
   next,
 }: {
-  curr?: Record<R, KeyPart | KeyPart[] | undefined>;
-  next?: Record<R, unknown | unknown[] | undefined>;
+  curr?: Record<R, KeyPart[]>;
+  next?: Record<R, KeyPart[]>;
 }) {
-  return curr
-    ? (Object.fromEntries(
-        (Object.entries(curr) as [R, KeyPart | KeyPart[] | undefined][]).map(
-          ([relation, fkeys]): [R, KeyPart | KeyPart[] | undefined] => {
-            if (!next || !next[relation]) {
-              return [relation, fkeys];
-            }
-            const newkeys = next[relation];
-            if (!fkeys) {
-              return [relation, undefined];
-            } else if (Array.isArray(fkeys)) {
-              return [
-                relation,
-                Array.isArray(newkeys)
-                  ? fkeys.filter(
-                      (x) => newkeys.find((y) => x === String(y)) === -1,
-                    )
-                  : fkeys.filter((x) => x !== String(newkeys)),
-              ];
-            } else {
-              if (Array.isArray(newkeys)) {
-                return [
-                  relation,
-                  newkeys.find((y) => fkeys === String(y)) === -1
-                    ? fkeys
-                    : undefined,
-                ];
-              } else {
-                return [
-                  relation,
-                  String(newkeys) !== fkeys ? fkeys : undefined,
-                ];
-              }
-            }
-          },
-        ),
-      ) as Record<R, KeyPart | KeyPart[] | undefined>)
-    : undefined;
+  if (curr === undefined || next === undefined) {
+    return undefined;
+  }
+  return Object.fromEntries(
+    (Object.entries(curr) as [R, KeyPart[]][]).reduce(
+      (accum, [relation, fkeys]: [R, KeyPart[]]) => {
+        if (!next || next[relation] === undefined) {
+          return accum;
+        }
+        const newkeys = next[relation];
+        accum.push([
+          relation,
+          fkeys.filter((x) => newkeys.find((y) => x === String(y)) !== -1),
+        ]);
+        return accum;
+      },
+      [] as [R, KeyPart[]][],
+    ),
+  ) as Record<R, KeyPart[]>;
 }
 
 function splitOnce(input: string, sep: string) {

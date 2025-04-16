@@ -108,17 +108,17 @@ export function ValkeyHashIndex<
   const update_ = update__ || updateHash(type);
 
   function related(value: Partial<T>) {
-    const results = Object.fromEntries(
-      Object.entries(value)
-        ?.filter(([field]) => relations?.findIndex((x) => x === field) !== -1)
-        ?.map(([field, fval]) => {
-          if (Array.isArray(fval)) {
-            return [field, fval.map((x) => String(x))];
-          }
-          return [field, String(fval)];
-        }) ?? [],
-    );
-    return results as ValkeyIndexRelations<T, R>;
+    return Object.fromEntries(
+      relations.map((relation) => {
+        const fval = value[relation];
+        if (Array.isArray(fval)) {
+          return [relation, fval.map((x) => String(x))];
+        } else if (fval === undefined || fval === null) {
+          return [relation, []];
+        }
+        return [relation, [String(fval)]];
+      }),
+    ) as ValkeyIndexRelations<T, R>;
   }
 
   async function getRelations({ pkey }: { pkey: KeyPart }) {
@@ -152,7 +152,7 @@ export function ValkeyHashIndex<
     const value = await get_({ valkey }, { key: key({ pkey }), fields });
     const curr = value ? related(value) : undefined;
     const pipeline = valkey.multi();
-    await touchRelated(pipeline, { pkey, message, ttl: ttl_, curr });
+    touchRelated(pipeline, { pkey, message, ttl: ttl_, curr });
     await pipeline.exec();
     return value;
   }
@@ -226,7 +226,7 @@ export function ValkeyHashIndex<
         input,
       },
     );
-    await touchRelated(pipeline, { pkey, message, ttl: ttl_, curr, next });
+    touchRelated(pipeline, { pkey, message, ttl: ttl_, curr, next });
     await pipeline.exec();
   }
 
@@ -244,7 +244,7 @@ export function ValkeyHashIndex<
     const key_ = key({ pkey });
     const curr_value = await get_({ valkey }, { key: key_ });
     const curr = curr_value ? related(curr_value) : undefined;
-    const next = related(input);
+    const next = related({ ...curr, ...input });
     const pipeline = valkey.multi();
     await update_(
       { ...indexer, pipeline },
@@ -253,7 +253,7 @@ export function ValkeyHashIndex<
         input,
       },
     );
-    await touchRelated(pipeline, { pkey, message, ttl: ttl_, curr, next });
+    touchRelated(pipeline, { pkey, message, ttl: ttl_, curr, next });
     await pipeline.exec();
     return;
   }
