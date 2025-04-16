@@ -1,3 +1,4 @@
+import type { ChainableCommander } from "iovalkey";
 import { bindHandlers, type ValkeyIndexSpec } from "./handler";
 import {
   ValkeyIndexer,
@@ -5,6 +6,7 @@ import {
   type ValkeyIndexerProps,
   type ValkeyIndexerReturn,
 } from "./indexer";
+import type { ValkeyPipelineAction, ValkeyPipelineResult } from "./pipeline";
 import type { ValkeyType } from "./type";
 
 export type ValkeyStreamIndexProps<
@@ -13,9 +15,13 @@ export type ValkeyStreamIndexProps<
 > = ValkeyIndexerProps<T, never> & {
   type: ValkeyType<T>;
   functions?: F;
-} & Partial<ValkeyStreamIndexHandlers<T>>;
+} & Partial<ValkeyStreamIndexHandlers<T>> & {
+    pipe?: Partial<ValkeyStreamIndexPipers<T>>;
+  };
 
-export type ValkeyStreamAppend<T> = (arg: AppendStreamArg<T>) => Promise<void>;
+export type ValkeyStreamAppend<T> = (
+  arg: AppendStreamArg<T>,
+) => Promise<string | null | undefined>;
 
 export type ValkeyStreamRange<T> = (
   arg: RangeStreamArg,
@@ -31,10 +37,23 @@ export type ValkeyStreamIndexOps<T> = {
   read: ValkeyStreamRead<T>;
 };
 
+export type ValkeyStreamAppendPipe<T> = (
+  arg: AppendStreamArg<T> & { time?: number },
+) => ValkeyPipelineAction<string | null | undefined>;
+
+export type ValkeyStreamRangePipe<T> = (
+  arg: RangeStreamArg & { time?: number },
+) => ValkeyPipelineAction<ValkeyStreamItem<Partial<T>>[]>;
+
+export type ValkeyStreamIndexPipes<T> = {
+  append: ValkeyStreamAppendPipe<T>;
+  range: ValkeyStreamRangePipe<T>;
+};
+
 export type ValkeyStreamAppendHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
   arg: AppendStreamArg<T>,
-) => Promise<void>;
+) => Promise<string | null>;
 
 export type ValkeyStreamRangeHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -52,8 +71,23 @@ export type ValkeyStreamIndexHandlers<T> = {
   read: ValkeyStreamReadHandler<T>;
 };
 
+export type ValkeyStreamAppendPiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: AppendStreamArg<T> & { time?: number },
+) => ValkeyPipelineAction<string | null | undefined>;
+
+export type ValkeyStreamRangePiper<T> = (
+  ctx: ValkeyIndexerReturn<T, never>,
+  arg: RangeStreamArg & { time?: number },
+) => ValkeyPipelineAction<ValkeyStreamItem<Partial<T>>[]>;
+
+export type ValkeyStreamIndexPipers<T> = {
+  append: ValkeyStreamAppendPiper<T>;
+  range: ValkeyStreamRangePiper<T>;
+};
+
 export type ValkeyStreamIndexInterface<T> = ValkeyIndexerReturn<T, never> &
-  ValkeyStreamIndexOps<T>;
+  ValkeyStreamIndexOps<T> & { pipe: ValkeyStreamIndexPipes<T> };
 
 export function ValkeyStreamIndex<
   T,
@@ -68,10 +102,14 @@ export function ValkeyStreamIndex<
   append: append__,
   range: range__,
   read: read__,
+  pipe: { append: append_pipe__, range: range_pipe__ } = {},
 }: ValkeyStreamIndexProps<T, F>) {
   const append_ = append__ || appendStream(type);
   const range_ = range__ || rangeStream(type);
   const read_ = read__ || readStream(type);
+
+  const append_pipe_ = append_pipe__ || appendStream_pipe(type);
+  const range_pipe_ = range_pipe__ || rangeStream_pipe(type);
 
   const indexer = ValkeyIndexer<T, never>({
     valkey,
@@ -81,11 +119,19 @@ export function ValkeyStreamIndex<
   });
 
   async function append(arg: AppendStreamArg<T>) {
-    append_(indexer, arg);
+    return append_(indexer, arg);
+  }
+
+  function append_pipe(arg: AppendStreamArg<T> & { time?: number }) {
+    return append_pipe_(indexer, arg);
   }
 
   async function range(arg: RangeStreamArg) {
     return range_(indexer, arg);
+  }
+
+  function range_pipe(arg: RangeStreamArg & { time?: number }) {
+    return range_pipe_(indexer, arg);
   }
 
   async function read(arg: ReadStreamArg) {
@@ -97,6 +143,10 @@ export function ValkeyStreamIndex<
     append,
     range,
     read,
+    pipe: {
+      append: append_pipe,
+      range: range_pipe,
+    },
   };
 
   return {
@@ -131,6 +181,7 @@ export function appendStream<T>(type: ValkeyType<T>) {
     if (maxlen !== undefined) {
       pipeline.xtrim(key, "MAXLEN", "~", maxlen);
     }
+    const idx = pipeline.length;
     pipeline.xadd(
       key,
       id ?? "*",
@@ -142,7 +193,53 @@ export function appendStream<T>(type: ValkeyType<T>) {
       ).flat(),
     );
     await touch(pipeline, { pkey, value: input, ttl: ttl_, message });
-    await pipeline.exec();
+    const results = await pipeline.exec();
+    return results?.[idx]?.[1] as string | null;
+  };
+}
+
+export function appendStream_pipe<T>(type: ValkeyType<T>) {
+  return function append(
+    { key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
+    {
+      pkey,
+      input,
+      id,
+      ttl: ttl_,
+      message,
+      time,
+    }: AppendStreamArg<T> & { time?: number },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const key = _key({ pkey });
+      const value = input && type.toStringMap(input);
+      if (value === undefined) {
+        return function getter(_: ValkeyPipelineResult) {
+          return undefined;
+        };
+      }
+      if (time !== undefined && ttl !== undefined) {
+        pipeline.xtrim(key, "MINID", "~", (time - ttl) * 1000);
+      }
+      if (maxlen !== undefined) {
+        pipeline.xtrim(key, "MAXLEN", "~", maxlen);
+      }
+      const idx = pipeline.length;
+      pipeline.xadd(
+        key,
+        id ?? "*",
+        ...Array.from(
+          Object.entries(value).filter(
+            (item): item is [(typeof item)[0], NonNullable<(typeof item)[1]>] =>
+              input !== undefined,
+          ),
+        ).flat(),
+      );
+      touch(pipeline, { pkey, value: input, ttl: ttl_, message });
+      return function getter(results: ValkeyPipelineResult) {
+        return results[idx]?.[1] as string | null;
+      };
+    };
   };
 }
 
@@ -178,6 +275,42 @@ export function rangeStream<T>(type: ValkeyType<T>) {
         data: type.fromStringMap(assembleRecord(fields)),
       } as ValkeyStreamItem<T>;
     });
+  };
+}
+
+export function rangeStream_pipe<T>(type: ValkeyType<T>) {
+  return function range(
+    { key: _key, touch, ttl, maxlen }: ValkeyIndexerReturn<T, never>,
+    {
+      pkey,
+      start,
+      stop,
+      ttl: ttl_,
+      message,
+      time,
+    }: RangeStreamArg & { time?: number },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      const key = _key({ pkey });
+      if (time !== undefined && ttl !== undefined) {
+        pipeline.xtrim(key, "MINID", "~", (time - ttl) * 1000);
+      }
+      if (maxlen !== undefined) {
+        pipeline.xtrim(key, "MAXLEN", "~", maxlen);
+      }
+      const idx = pipeline.length;
+      pipeline.xrange(key, start ?? "-", stop ?? "+");
+      touch(pipeline, { pkey, ttl: ttl_, message });
+      return function getter(results: ValkeyPipelineResult) {
+        const result = results[idx]?.[1] as [string, string[]][];
+        return result.map(([id, fields]) => {
+          return {
+            id,
+            data: type.fromStringMap(assembleRecord(fields)),
+          } as ValkeyStreamItem<T>;
+        });
+      };
+    };
   };
 }
 
