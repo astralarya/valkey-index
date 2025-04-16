@@ -192,7 +192,7 @@ export function appendStream<T>(type: ValkeyType<T>) {
         ),
       ).flat(),
     );
-    await touch(pipeline, { pkey, value: input, ttl: ttl_, message });
+    touch(pipeline, { pkey, message, ttl: ttl_ });
     const results = await pipeline.exec();
     return results?.[idx]?.[1] as string | null;
   };
@@ -235,7 +235,7 @@ export function appendStream_pipe<T>(type: ValkeyType<T>) {
           ),
         ).flat(),
       );
-      touch(pipeline, { pkey, value: input, ttl: ttl_, message });
+      touch(pipeline, { pkey, message, ttl: ttl_ });
       return function getter(results: ValkeyPipelineResult) {
         return results[idx]?.[1] as string | null;
       };
@@ -266,7 +266,7 @@ export function rangeStream<T>(type: ValkeyType<T>) {
       pipeline.xtrim(key, "MAXLEN", "~", maxlen);
     }
     pipeline.xrange(key, start ?? "-", stop ?? "+");
-    await touch(pipeline, { pkey, ttl: ttl_, message });
+    touch(pipeline, { pkey, message, ttl: ttl_ });
     const results = await pipeline.exec();
     const result = results?.[0]?.[1] as [string, string[]][];
     return result.map(([id, fields]) => {
@@ -300,7 +300,7 @@ export function rangeStream_pipe<T>(type: ValkeyType<T>) {
       }
       const idx = pipeline.length;
       pipeline.xrange(key, start ?? "-", stop ?? "+");
-      touch(pipeline, { pkey, ttl: ttl_, message });
+      touch(pipeline, { pkey, message, ttl: ttl_ });
       return function getter(results: ValkeyPipelineResult) {
         const result = results[idx]?.[1] as [string, string[]][];
         return result.map(([id, fields]) => {
@@ -346,7 +346,7 @@ export function readStream<T>(type: ValkeyType<T>) {
     if (maxlen !== null) {
       pipeline.xtrim(key, "MAXLEN", "~", maxlen);
     }
-    await touch(pipeline, { pkey, ttl: ttl_, message });
+    touch(pipeline, { pkey, message, ttl: ttl_ });
     await pipeline.exec();
     const subscription = valkey.duplicate();
     // console.log("signal", signal);

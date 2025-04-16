@@ -85,9 +85,16 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
     pipeline: ChainableCommander,
     arg: {
       pkey: KeyPart;
-      value?: Partial<T>;
-      ttl?: Date | number;
       message?: string;
+      ttl?: Date | number;
+    },
+  ) => void;
+  touchRelated: (
+    pipeline: ChainableCommander,
+    arg: {
+      pkey: KeyPart;
+      message?: string;
+      ttl?: Date | number;
       curr?: ValkeyIndexRelations<T, R>;
       next?: ValkeyIndexRelations<T, R>;
     },
@@ -260,21 +267,17 @@ export function ValkeyIndexer<T, R extends keyof T>({
     }
   }
 
-  async function touch(
+  function touch(
     pipeline: ChainableCommander,
     {
       pkey,
       ttl: ttl_,
       message,
-      curr,
-      next,
     }: {
       pkey: KeyPart;
       value?: Partial<T>;
       ttl?: Date | number;
       message?: string;
-      curr?: ValkeyIndexRelations<T, R>;
-      next?: ValkeyIndexRelations<T, R>;
     },
   ) {
     const key_ = key({ pkey });
@@ -289,6 +292,25 @@ export function ValkeyIndexer<T, R extends keyof T>({
       const event = stringifyEvent({ pkey, index: name }, message);
       pipeline.publish(key({ pkey }), event);
     }
+  }
+
+  async function touchRelated(
+    pipeline: ChainableCommander,
+    {
+      pkey,
+      ttl: ttl_,
+      message,
+      curr,
+      next,
+    }: {
+      pkey: KeyPart;
+      ttl?: Date | number;
+      message?: string;
+      curr?: ValkeyIndexRelations<T, R>;
+      next?: ValkeyIndexRelations<T, R>;
+    },
+  ) {
+    touch(pipeline, { pkey, ttl: ttl_, message });
     const rm = curr && next && diffRelations({ curr, next });
     if (rm) {
       for (const [relation, fkey] of Object.entries(rm) as [
@@ -364,6 +386,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     publish,
     subscribe,
     touch,
+    touchRelated,
     del,
   };
 }
