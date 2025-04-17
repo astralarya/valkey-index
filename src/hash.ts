@@ -136,7 +136,7 @@ export function ValkeyHashIndex<
     maxlen,
     getRelations,
   });
-  const { key, pkeys, touchRelated } = indexer;
+  const { key, pkeys, touch } = indexer;
 
   async function _get_pkey({
     pkey,
@@ -152,7 +152,7 @@ export function ValkeyHashIndex<
     const value = await get_({ valkey }, { key: key({ pkey }), fields });
     const curr = value ? related(value) : undefined;
     const pipeline = valkey.multi();
-    touchRelated(pipeline, { pkey, message, ttl: ttl_, curr });
+    touch(pipeline, { pkey, message, ttl: ttl_, curr });
     await pipeline.exec();
     return value;
   }
@@ -226,7 +226,7 @@ export function ValkeyHashIndex<
         input,
       },
     );
-    touchRelated(pipeline, { pkey, message, ttl: ttl_, curr, next });
+    touch(pipeline, { pkey, message, ttl: ttl_, curr, next });
     await pipeline.exec();
   }
 
@@ -253,7 +253,7 @@ export function ValkeyHashIndex<
         input,
       },
     );
-    touchRelated(pipeline, { pkey, message, ttl: ttl_, curr, next });
+    touch(pipeline, { pkey, message, ttl: ttl_, curr, next });
     await pipeline.exec();
     return;
   }
