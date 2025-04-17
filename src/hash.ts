@@ -43,10 +43,18 @@ export type ValkeyHashUpdate<T> = (arg: {
   message?: string;
 }) => Promise<void>;
 
+export type ValkeyHashReduce<T> = (arg: {
+  pkey: KeyPart;
+  reducer: (prev: T | undefined) => T | undefined;
+  ttl?: Date | number;
+  message?: string;
+}) => Promise<T | undefined>;
+
 export type ValkeyHashIndexOps<T, R extends keyof T> = {
   get: ValkeyHashGet<T, R>;
   set: ValkeyHashSet<T>;
   update: ValkeyHashUpdate<T>;
+  reduce: ValkeyHashReduce<T>;
 };
 
 export type ValkeyHashIndexInterface<
@@ -136,7 +144,7 @@ export function ValkeyHashIndex<
     maxlen,
     getRelations,
   });
-  const { key, pkeys, touch } = indexer;
+  const { key, pkeys, touch, del } = indexer;
 
   async function _get_pkey({
     pkey,
@@ -258,11 +266,47 @@ export function ValkeyHashIndex<
     return;
   }
 
+  async function reduce({
+    pkey,
+    reducer,
+    ttl: ttl_,
+    message,
+  }: {
+    pkey: KeyPart;
+    reducer: (prev: T | undefined) => T | undefined;
+    ttl?: Date | number;
+    message?: string;
+  }) {
+    const key_ = key({ pkey });
+    const curr_value = await get_({ valkey }, { key: key_ });
+    const curr = curr_value ? related(curr_value) : undefined;
+    const next_value = reducer(curr_value);
+    const next = next_value ? related(next_value) : undefined;
+    const pipeline = valkey.multi();
+    if (next_value === undefined) {
+      if (curr_value !== undefined) {
+        await del({ pkey });
+      }
+    } else {
+      await update_(
+        { ...indexer, pipeline },
+        {
+          key: key_,
+          input: next_value,
+        },
+      );
+      touch(pipeline, { pkey, message, ttl: ttl_, curr, next });
+    }
+    await pipeline.exec();
+    return next_value;
+  }
+
   const ops: ValkeyHashIndexInterface<T, R> = {
     ...indexer,
     get,
     set,
     update,
+    reduce,
   };
 
   return {

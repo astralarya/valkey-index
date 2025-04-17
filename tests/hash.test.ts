@@ -9,14 +9,19 @@ const hashIndex = ValkeyHashIndex({
   type: ValkeyType<TestObject>(),
   relations: [],
   functions: {
-    use: async ({ get, update }, { pkey }: { pkey: KeyPart }) => {
-      const val = await get({ pkey });
-      if (val?.baz === undefined) {
-        return;
-      }
-      const next = val.baz + 1;
-      await update({ pkey, input: { baz: next } });
-      return next;
+    use: async ({ reduce }, { pkey }: { pkey: KeyPart }) => {
+      return (
+        await reduce({
+          pkey,
+          reducer: (prev) =>
+            prev
+              ? {
+                  ...prev,
+                  baz: prev.baz !== undefined ? prev.baz + 1 : undefined,
+                }
+              : undefined,
+        })
+      )?.baz;
     },
   },
 });
