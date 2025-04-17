@@ -84,7 +84,7 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
       pkey: KeyPart;
       message?: string;
       ttl?: Date | number;
-      curr?: ValkeyIndexRelations<T, R>;
+      prev?: ValkeyIndexRelations<T, R>;
       next?: ValkeyIndexRelations<T, R>;
     },
   ) => void;
@@ -258,14 +258,14 @@ export function ValkeyIndexer<T, R extends keyof T>({
       pkey,
       ttl: ttl_,
       message,
-      curr,
+      prev,
       next,
     }: {
       pkey: KeyPart;
       value?: Partial<T>;
       ttl?: Date | number;
       message?: string;
-      curr?: ValkeyIndexRelations<T, R>;
+      prev?: ValkeyIndexRelations<T, R>;
       next?: ValkeyIndexRelations<T, R>;
     },
   ) {
@@ -281,7 +281,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
       const event = stringifyEvent({ pkey, index: name }, message);
       pipeline.publish(key({ pkey }), event);
     }
-    const rm = diffRelations({ curr, next });
+    const rm = diffRelations({ prev, next });
     if (rm) {
       for (const [relation, fkey] of Object.entries(rm) as [R, KeyPart[]][]) {
         fkey.forEach((item) => {
@@ -371,17 +371,17 @@ export function validateValkeyName(name: string) {
 }
 
 export function diffRelations<T, R extends keyof T>({
-  curr,
+  prev,
   next,
 }: {
-  curr?: Record<R, KeyPart[]>;
+  prev?: Record<R, KeyPart[]>;
   next?: Record<R, KeyPart[]>;
 }) {
-  if (curr === undefined || next === undefined) {
+  if (prev === undefined || next === undefined) {
     return undefined;
   }
   return Object.fromEntries(
-    (Object.entries(curr) as [R, KeyPart[]][]).reduce(
+    (Object.entries(prev) as [R, KeyPart[]][]).reduce(
       (accum, [relation, fkeys]: [R, KeyPart[]]) => {
         if (!next || next[relation] === undefined) {
           return accum;

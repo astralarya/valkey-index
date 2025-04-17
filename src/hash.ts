@@ -59,40 +59,33 @@ export type ValkeyHashIndexOps<T, R extends keyof T> = {
   reduce: ValkeyHashReduce<T>;
 };
 
-export type ValkeyHashGetPipe<T, R extends keyof T> = {
-  (arg: {
-    pkey: KeyPart;
-    fields?: (keyof T)[];
-    ttl?: Date | number;
-    message?: string;
-  }): ValkeyPipelineAction<T | undefined>;
-  (arg: {
-    relation: R;
-    fkey: KeyPart;
-    fields?: (keyof T)[];
-    ttl?: Date | number;
-    message?: string;
-  }): ValkeyPipelineAction<Record<R, T | undefined>>;
-};
+export type ValkeyHashGetPipe<T> = (arg: {
+  pkey: KeyPart;
+  fields?: (keyof T)[];
+  ttl?: Date | number;
+  message?: string;
+}) => ValkeyPipelineAction<T | undefined>;
 
 export type ValkeyHashSetPipe<T> = (arg: {
   pkey: KeyPart;
   input: T;
+  prev: T | undefined;
   ttl?: Date | number;
   message?: string;
 }) => ValkeyPipelineAction<void>;
 
-export type ValkeyHashIndexPipes<T, R extends keyof T> = {
-  get: ValkeyHashGetPipe<T, R>;
+export type ValkeyHashIndexPipes<T> = {
+  get: ValkeyHashGetPipe<T>;
   set: ValkeyHashSetPipe<T>;
 };
 
 export type ValkeyHashIndexInterface<
   T,
   R extends keyof T,
-> = ValkeyIndexerReturn<T, R> & ValkeyHashIndexOps<T, R> /*& {
-    pipe: ValkeyHashIndexPipes<T, R>;
-  }*/;
+> = ValkeyIndexerReturn<T, R> &
+  ValkeyHashIndexOps<T, R> & {
+    pipe: ValkeyHashIndexPipes<T>;
+  };
 
 export type ValkeyHashGetHandler<T> = (
   ctx: { valkey: Redis },
@@ -118,12 +111,12 @@ export type ValkeyHashIndexHandlers<T, R extends keyof T> = {
 export type ValkeyHashGetPiper<T> = (
   ctx: { valkey: Redis },
   arg: { key: string; fields?: (keyof T)[] },
-) => Promise<T | undefined>;
+) => ValkeyPipelineAction<T | undefined>;
 
 export type ValkeyHashSetPiper<T, R extends keyof T> = (
   ctx: ValkeyIndexerContext<T, R>,
   arg: { key: string; input: T },
-) => Promise<void>;
+) => ValkeyPipelineAction<void>;
 
 export type ValkeyHashIndexPipers<T, R extends keyof T> = {
   get: ValkeyHashGetPiper<T>;
@@ -164,7 +157,7 @@ export function ValkeyHashIndex<
   const get_ =
     get__ ||
     async function (_, { key, fields }: { key: string; fields?: (keyof T)[] }) {
-      const pipe = getHash(type)({ key, fields });
+      const pipe = getHash(type)({ valkey }, { key, fields });
       const pipeline = valkey.pipeline();
       const getter = pipe(pipeline);
       const results = await pipeline.exec();
@@ -179,7 +172,7 @@ export function ValkeyHashIndex<
       { pipeline }: { pipeline: ChainableCommander },
       { key, input }: { key: string; input: T },
     ) {
-      const pipe = setHash(type)({ key, input });
+      const pipe = setHash(type)({ ...indexer, pipeline }, { key, input });
       pipe(pipeline);
       await pipeline.exec();
     };
@@ -231,9 +224,9 @@ export function ValkeyHashIndex<
     message?: string;
   }) {
     const value = await get_({ valkey }, { key: key({ pkey }), fields });
-    const curr = value ? related(value) : undefined;
+    const prev = value ? related(value) : undefined;
     const pipeline = valkey.multi();
-    touch(pipeline, { pkey, message, ttl: ttl_, curr });
+    touch(pipeline, { pkey, message, ttl: ttl_, prev });
     await pipeline.exec();
     return value;
   }
@@ -284,6 +277,34 @@ export function ValkeyHashIndex<
     throw new ValkeyIndexRefError("ValkeyHashIndex:get()");
   }
 
+  function _get_pkey_pipe({
+    pkey,
+    fields,
+    ttl: ttl_,
+    message,
+  }: {
+    pkey: KeyPart;
+    fields?: (keyof T)[];
+    ttl?: Date | number;
+    message?: string;
+  }) {
+    return function pipe(pipeline: ChainableCommander) {
+      const action = get_pipe_({ valkey }, { key: key({ pkey }), fields });
+      const getter = action(pipeline);
+      touch(pipeline, { pkey, message, ttl: ttl_ });
+      return getter;
+    };
+  }
+
+  function get_pipe(arg: {
+    pkey: KeyPart;
+    fields?: (keyof T)[];
+    ttl?: Date | number;
+    message?: string;
+  }) {
+    return _get_pkey_pipe(arg);
+  }
+
   async function set({
     pkey,
     input,
@@ -296,8 +317,8 @@ export function ValkeyHashIndex<
     message?: string;
   }) {
     const key_ = key({ pkey });
-    const curr_value = await get_({ valkey }, { key: key_ });
-    const curr = curr_value ? related(curr_value) : undefined;
+    const prev_value = await get_({ valkey }, { key: key_ });
+    const prev = prev_value ? related(prev_value) : undefined;
     const next = related(input);
     const pipeline = valkey.multi();
     await set_(
@@ -307,8 +328,38 @@ export function ValkeyHashIndex<
         input,
       },
     );
-    touch(pipeline, { pkey, message, ttl: ttl_, curr, next });
+    touch(pipeline, { pkey, message, ttl: ttl_, prev, next });
     await pipeline.exec();
+  }
+
+  function set_pipe({
+    pkey,
+    input,
+    prev: prev_value,
+    ttl: ttl_,
+    message,
+  }: {
+    pkey: KeyPart;
+    input: T;
+    prev: T | undefined;
+    ttl?: Date | number;
+    message?: string;
+  }) {
+    const key_ = key({ pkey });
+    const prev = prev_value ? related(prev_value) : undefined;
+    const next = related(input);
+    return function pipe(pipeline: ChainableCommander) {
+      const action = set_pipe_(
+        { ...indexer, pipeline },
+        {
+          key: key_,
+          input,
+        },
+      );
+      action(pipeline);
+      touch(pipeline, { pkey, message, ttl: ttl_, prev, next });
+      return null;
+    };
   }
 
   async function update({
@@ -323,9 +374,9 @@ export function ValkeyHashIndex<
     message?: string;
   }) {
     const key_ = key({ pkey });
-    const curr_value = await get_({ valkey }, { key: key_ });
-    const curr = curr_value ? related(curr_value) : undefined;
-    const next = related({ ...curr, ...input });
+    const prev_value = await get_({ valkey }, { key: key_ });
+    const prev = prev_value ? related(prev_value) : undefined;
+    const next = related({ ...prev, ...input });
     const pipeline = valkey.multi();
     await update_(
       { ...indexer, pipeline },
@@ -334,7 +385,7 @@ export function ValkeyHashIndex<
         input,
       },
     );
-    touch(pipeline, { pkey, message, ttl: ttl_, curr, next });
+    touch(pipeline, { pkey, message, ttl: ttl_, prev, next });
     await pipeline.exec();
     return;
   }
@@ -351,13 +402,13 @@ export function ValkeyHashIndex<
     message?: string;
   }) {
     const key_ = key({ pkey });
-    const curr_value = await get_({ valkey }, { key: key_ });
-    const curr = curr_value ? related(curr_value) : undefined;
-    const next_value = reducer(curr_value);
+    const prev_value = await get_({ valkey }, { key: key_ });
+    const prev = prev_value ? related(prev_value) : undefined;
+    const next_value = reducer(prev_value);
     const next = next_value ? related(next_value) : undefined;
     const pipeline = valkey.multi();
     if (next_value === undefined) {
-      if (curr_value !== undefined) {
+      if (prev_value !== undefined) {
         await del({ pkey });
       }
     } else {
@@ -368,7 +419,7 @@ export function ValkeyHashIndex<
           input: next_value,
         },
       );
-      touch(pipeline, { pkey, message, ttl: ttl_, curr, next });
+      touch(pipeline, { pkey, message, ttl: ttl_, prev, next });
     }
     await pipeline.exec();
     return next_value;
@@ -380,6 +431,10 @@ export function ValkeyHashIndex<
     set,
     update,
     reduce,
+    pipe: {
+      get: get_pipe,
+      set: set_pipe,
+    },
   };
 
   return {
@@ -389,7 +444,10 @@ export function ValkeyHashIndex<
 }
 
 export function getHash<T>(type: ValkeyType<T>) {
-  return function get({ key, fields }: { key: string; fields?: (keyof T)[] }) {
+  return function get(
+    _: { valkey: Redis },
+    { key, fields }: { key: string; fields?: (keyof T)[] },
+  ) {
     return function pipe(pipeline: ChainableCommander) {
       if (fields !== undefined) {
         const idx = pipeline.length;
@@ -419,7 +477,10 @@ export function getHash<T>(type: ValkeyType<T>) {
 }
 
 export function setHash<T>(type: ValkeyType<T>) {
-  return function set({ key, input }: { key: string; input: T }) {
+  return function set(
+    _: ValkeyIndexerContext<T, any>,
+    { key, input }: { key: string; input: T },
+  ) {
     return function pipe(pipeline: ChainableCommander) {
       if (input === undefined) {
         return;
