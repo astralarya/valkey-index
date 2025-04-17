@@ -673,11 +673,8 @@ export function trimList_pipe<T>() {
     },
   ) {
     return function pipe(pipeline: ChainableCommander) {
-      const idx = pipeline.length;
       pipeline.ltrim(key, start, stop);
-      return function getter(results: ValkeyPipelineResult) {
-        return;
-      };
+      return null;
     };
   };
 }

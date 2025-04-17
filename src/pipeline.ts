@@ -6,7 +6,7 @@ export type ValkeyPipelineProps = {
 
 export type ValkeyPipelineAction<T> = (
   pipeline: ChainableCommander,
-) => ValkeyPipelineGetter<T>;
+) => ValkeyPipelineGetter<T> | null;
 
 export type ValkeyPipelineResult = [error: Error | null, result: unknown][];
 
@@ -14,7 +14,10 @@ export type ValkeyPipelineGetter<T> = (
   results: [error: Error | null, result: unknown][],
 ) => T;
 
-type ValkeyPipelineGetters = Record<string, ValkeyPipelineGetter<any>[]>;
+type ValkeyPipelineGetters = Record<
+  string,
+  (ValkeyPipelineGetter<any> | null)[]
+>;
 
 export function ValkeyPipeline(valkey: Redis) {
   const pipeline = valkey.pipeline();
@@ -36,7 +39,7 @@ export function ValkeyPipeline(valkey: Redis) {
     }
     const values: Record<string, any[]> = {};
     Object.entries(getters).forEach(([label, list]) => {
-      values[label] = list.map((getter) => getter(results));
+      values[label] = list.map((getter) => getter?.(results));
     });
     return values as T;
   }
