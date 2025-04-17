@@ -12,6 +12,8 @@ import {
   type ValkeyIndexRelations,
 } from "./indexer";
 import { bindHandlers, type ValkeyIndexSpec } from "./handler";
+import type { ChainableCommander } from "iovalkey";
+import type { ValkeyPipelineAction, ValkeyPipelineResult } from "./pipeline";
 
 export type ValkeyHashGet<T, R extends keyof T> = {
   (arg: {
@@ -57,10 +59,40 @@ export type ValkeyHashIndexOps<T, R extends keyof T> = {
   reduce: ValkeyHashReduce<T>;
 };
 
+export type ValkeyHashGetPipe<T, R extends keyof T> = {
+  (arg: {
+    pkey: KeyPart;
+    fields?: (keyof T)[];
+    ttl?: Date | number;
+    message?: string;
+  }): ValkeyPipelineAction<T | undefined>;
+  (arg: {
+    relation: R;
+    fkey: KeyPart;
+    fields?: (keyof T)[];
+    ttl?: Date | number;
+    message?: string;
+  }): ValkeyPipelineAction<Record<R, T | undefined>>;
+};
+
+export type ValkeyHashSetPipe<T> = (arg: {
+  pkey: KeyPart;
+  input: T;
+  ttl?: Date | number;
+  message?: string;
+}) => ValkeyPipelineAction<void>;
+
+export type ValkeyHashIndexPipes<T, R extends keyof T> = {
+  get: ValkeyHashGetPipe<T, R>;
+  set: ValkeyHashSetPipe<T>;
+};
+
 export type ValkeyHashIndexInterface<
   T,
   R extends keyof T,
-> = ValkeyIndexerReturn<T, R> & ValkeyHashIndexOps<T, R>;
+> = ValkeyIndexerReturn<T, R> & ValkeyHashIndexOps<T, R> /*& {
+    pipe: ValkeyHashIndexPipes<T, R>;
+  }*/;
 
 export type ValkeyHashGetHandler<T> = (
   ctx: { valkey: Redis },
@@ -83,6 +115,21 @@ export type ValkeyHashIndexHandlers<T, R extends keyof T> = {
   update: ValkeyHashUpdateHandler<T, R>;
 };
 
+export type ValkeyHashGetPiper<T> = (
+  ctx: { valkey: Redis },
+  arg: { key: string; fields?: (keyof T)[] },
+) => Promise<T | undefined>;
+
+export type ValkeyHashSetPiper<T, R extends keyof T> = (
+  ctx: ValkeyIndexerContext<T, R>,
+  arg: { key: string; input: T },
+) => Promise<void>;
+
+export type ValkeyHashIndexPipers<T, R extends keyof T> = {
+  get: ValkeyHashGetPiper<T>;
+  set: ValkeyHashSetPiper<T, R>;
+};
+
 export type ValkeyHashIndexProps<
   T,
   R extends keyof T,
@@ -91,7 +138,9 @@ export type ValkeyHashIndexProps<
   type: ValkeyType<T>;
   relations: R[];
   functions?: F;
-} & Partial<ValkeyHashIndexHandlers<T, R>>;
+} & Partial<ValkeyHashIndexHandlers<T, R>> & {
+    pipe?: Partial<ValkeyHashIndexPipers<T, R>>;
+  };
 
 export function ValkeyHashIndex<
   T,
@@ -108,12 +157,36 @@ export function ValkeyHashIndex<
   get: get__,
   set: set__,
   update: update__,
+  pipe: { get: get_pipe__, set: set_pipe__ } = {},
 }: ValkeyHashIndexProps<T, R, F>) {
   relations.map((x) => validateValkeyName(String(x)));
 
-  const get_ = get__ || getHash(type);
-  const set_ = set__ || setHash(type);
+  const get_ =
+    get__ ||
+    async function (_, { key, fields }: { key: string; fields?: (keyof T)[] }) {
+      const pipe = getHash(type)({ key, fields });
+      const pipeline = valkey.pipeline();
+      const getter = pipe(pipeline);
+      const results = await pipeline.exec();
+      if (!results) {
+        return undefined;
+      }
+      return getter(results);
+    };
+  const set_ =
+    set__ ||
+    async function (
+      { pipeline }: { pipeline: ChainableCommander },
+      { key, input }: { key: string; input: T },
+    ) {
+      const pipe = setHash(type)({ key, input });
+      pipe(pipeline);
+      await pipeline.exec();
+    };
   const update_ = update__ || updateHash(type);
+
+  const get_pipe_ = get_pipe__ || getHash(type);
+  const set_pipe_ = set_pipe__ || setHash(type);
 
   function related(value: Partial<T>) {
     return Object.fromEntries(
@@ -315,44 +388,49 @@ export function ValkeyHashIndex<
   };
 }
 
-export function getHash<T, R extends keyof T>(type: ValkeyType<T>) {
-  return async function get(
-    { valkey }: { valkey: Redis },
-    { key, fields }: { key: string; fields?: R[] },
-  ) {
-    if (fields !== undefined) {
-      const pipeline = valkey.multi();
-      for (const field of fields) {
-        pipeline.hget(key, String(field));
+export function getHash<T>(type: ValkeyType<T>) {
+  return function get({ key, fields }: { key: string; fields?: (keyof T)[] }) {
+    return function pipe(pipeline: ChainableCommander) {
+      if (fields !== undefined) {
+        const idx = pipeline.length;
+        for (const field of fields) {
+          pipeline.hget(key, String(field));
+        }
+        const idx_end = pipeline.length;
+        return function getter(results: ValkeyPipelineResult) {
+          const value = Object.fromEntries(
+            results?.slice(idx, idx_end).map(([_, result], idx) => {
+              return [fields[idx], result] as const;
+            }) ?? [],
+          );
+          return type.fromStringMap(value);
+        };
+      } else {
+        const idx = pipeline.length;
+        pipeline.hgetall(key);
+        return function getter(results: ValkeyPipelineResult) {
+          return type.fromStringMap(
+            results[idx]?.[1] as Record<string, string>,
+          );
+        };
       }
-      const results = await pipeline.exec();
-      const value = Object.fromEntries(
-        results?.map(([_, result], idx) => {
-          return [fields[idx], result] as const;
-        }) ?? [],
-      );
-      return type.fromStringMap(value);
-    } else {
-      const value = await valkey.hgetall(key);
-      return type.fromStringMap(value);
-    }
+    };
   };
 }
 
-export function setHash<T, R extends keyof T>(type: ValkeyType<T>) {
-  return async function set(
-    { pipeline }: ValkeyIndexerContext<T, R>,
-    { key, input }: { key: string; input: T },
-  ) {
-    if (input === undefined) {
-      return;
-    }
-    const value = type.toStringMap(input);
-    if (value === undefined) {
-      return;
-    }
-    pipeline.del(key);
-    pipeline.hset(key, value);
+export function setHash<T>(type: ValkeyType<T>) {
+  return function set({ key, input }: { key: string; input: T }) {
+    return function pipe(pipeline: ChainableCommander) {
+      if (input === undefined) {
+        return;
+      }
+      const value = type.toStringMap(input);
+      if (value === undefined) {
+        return;
+      }
+      pipeline.del(key);
+      pipeline.hset(key, value);
+    };
   };
 }
 
