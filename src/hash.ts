@@ -13,16 +13,6 @@ import {
 } from "./indexer";
 import { bindHandlers, type ValkeyIndexSpec } from "./handler";
 
-export type ValkeyHashIndexProps<
-  T,
-  R extends keyof T,
-  F extends ValkeyIndexSpec<ValkeyHashIndexInterface<T, R>>,
-> = ValkeyIndexerProps<T, R> & {
-  type: ValkeyType<T>;
-  relations: R[];
-  functions?: F;
-} & Partial<ValkeyHashIndexHandlers<T, R>>;
-
 export type ValkeyHashGet<T, R extends keyof T> = {
   (arg: {
     pkey: KeyPart;
@@ -59,6 +49,11 @@ export type ValkeyHashIndexOps<T, R extends keyof T> = {
   update: ValkeyHashUpdate<T>;
 };
 
+export type ValkeyHashIndexInterface<
+  T,
+  R extends keyof T,
+> = ValkeyIndexerReturn<T, R> & ValkeyHashIndexOps<T, R>;
+
 export type ValkeyHashGetHandler<T> = (
   ctx: { valkey: Redis },
   arg: { key: string; fields?: (keyof T)[] },
@@ -80,10 +75,15 @@ export type ValkeyHashIndexHandlers<T, R extends keyof T> = {
   update: ValkeyHashUpdateHandler<T, R>;
 };
 
-export type ValkeyHashIndexInterface<
+export type ValkeyHashIndexProps<
   T,
   R extends keyof T,
-> = ValkeyIndexerReturn<T, R> & ValkeyHashIndexOps<T, R>;
+  F extends ValkeyIndexSpec<ValkeyHashIndexInterface<T, R>>,
+> = ValkeyIndexerProps<T, R> & {
+  type: ValkeyType<T>;
+  relations: R[];
+  functions?: F;
+} & Partial<ValkeyHashIndexHandlers<T, R>>;
 
 export function ValkeyHashIndex<
   T,

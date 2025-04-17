@@ -9,16 +9,6 @@ import {
 import type { ValkeyPipelineAction, ValkeyPipelineResult } from "./pipeline";
 import type { ValkeyType } from "./type";
 
-export type ValkeyStreamIndexProps<
-  T,
-  F extends ValkeyIndexSpec<ValkeyStreamIndexOps<T>>,
-> = ValkeyIndexerProps<T, never> & {
-  type: ValkeyType<T>;
-  functions?: F;
-} & Partial<ValkeyStreamIndexHandlers<T>> & {
-    pipe?: Partial<ValkeyStreamIndexPipers<T>>;
-  };
-
 export type ValkeyStreamAppend<T> = (
   arg: AppendStreamArg<T>,
 ) => Promise<string | null | undefined>;
@@ -49,6 +39,9 @@ export type ValkeyStreamIndexPipes<T> = {
   append: ValkeyStreamAppendPipe<T>;
   range: ValkeyStreamRangePipe<T>;
 };
+
+export type ValkeyStreamIndexInterface<T> = ValkeyIndexerReturn<T, never> &
+  ValkeyStreamIndexOps<T> & { pipe: ValkeyStreamIndexPipes<T> };
 
 export type ValkeyStreamAppendHandler<T> = (
   ctx: ValkeyIndexerReturn<T, never>,
@@ -86,8 +79,15 @@ export type ValkeyStreamIndexPipers<T> = {
   range: ValkeyStreamRangePiper<T>;
 };
 
-export type ValkeyStreamIndexInterface<T> = ValkeyIndexerReturn<T, never> &
-  ValkeyStreamIndexOps<T> & { pipe: ValkeyStreamIndexPipes<T> };
+export type ValkeyStreamIndexProps<
+  T,
+  F extends ValkeyIndexSpec<ValkeyStreamIndexOps<T>>,
+> = ValkeyIndexerProps<T, never> & {
+  type: ValkeyType<T>;
+  functions?: F;
+} & Partial<ValkeyStreamIndexHandlers<T>> & {
+    pipe?: Partial<ValkeyStreamIndexPipers<T>>;
+  };
 
 export function ValkeyStreamIndex<
   T,
