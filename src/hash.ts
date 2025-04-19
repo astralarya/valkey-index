@@ -195,7 +195,7 @@ export function ValkeyHashIndex<
     ) as ValkeyIndexRelations<T, R>;
   }
 
-  async function getRelations({ pkey }: { pkey: KeyPart }) {
+  async function getRelated({ pkey }: { pkey: KeyPart }) {
     const value = await get_(
       { valkey },
       { key: key({ pkey }), fields: relations },
@@ -208,7 +208,7 @@ export function ValkeyHashIndex<
     name,
     ttl,
     maxlen,
-    getRelations,
+    getRelated,
   });
   const { key, pkeys, touch, del } = indexer;
 

@@ -49,7 +49,7 @@ export type ValkeyIndexerProps<T, R extends keyof T> = {
   name: string;
   ttl?: number;
   maxlen?: number;
-  getRelations?: (ref: {
+  getRelated?: (ref: {
     pkey: KeyPart;
   }) => ValkeyIndexRelations<T, R> | Promise<ValkeyIndexRelations<T, R>>;
 };
@@ -61,7 +61,7 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
   maxlen?: number;
   key: (ref: ValkeyIndexRef<T, R>) => string;
   pkeys: (ref: ValkeyIndexRef<T, R>) => Promise<KeyPart[]>;
-  mapRelations: (
+  mapRelated: (
     relations: ValkeyIndexRelations<T, R>,
     func: (ref: ValkeyIndexRef<T, R>) => unknown,
   ) => void;
@@ -101,13 +101,13 @@ export function ValkeyIndexer<T, R extends keyof T>({
   name,
   ttl,
   maxlen,
-  getRelations: getRelations_,
+  getRelated: getRelated_,
 }: ValkeyIndexerProps<T, R>): ValkeyIndexerReturn<T, R> {
   validateValkeyName(name);
 
-  function getRelations(ref: { pkey: KeyPart }) {
-    if (getRelations_) {
-      return getRelations_(ref);
+  function getRelated(ref: { pkey: KeyPart }) {
+    if (getRelated_) {
+      return getRelated_(ref);
     } else {
       return {} as ValkeyIndexRelations<T, R>;
     }
@@ -131,7 +131,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     throw new ValkeyIndexRefError("ValkeyIndexer:pkeys()");
   }
 
-  function mapRelations(
+  function mapRelated(
     relations: ValkeyIndexRelations<T, R>,
     func: (ref: ValkeyIndexRef<T, R>) => unknown,
   ) {
@@ -163,8 +163,8 @@ export function ValkeyIndexer<T, R extends keyof T>({
       );
       for (const pkey of await pkeys(arg)) {
         pipeline.publish(key({ pkey }), event);
-        const relations = await getRelations({ pkey });
-        mapRelations(relations, (ref) => {
+        const relations = await getRelated({ pkey });
+        mapRelated(relations, (ref) => {
           pipeline.publish(key(ref), event);
         });
       }
@@ -175,8 +175,8 @@ export function ValkeyIndexer<T, R extends keyof T>({
       );
       for (const pkey of await pkeys(arg)) {
         pipeline.publish(key({ pkey }), event);
-        const relations = await getRelations({ pkey });
-        mapRelations(relations, (ref) => {
+        const relations = await getRelated({ pkey });
+        mapRelated(relations, (ref) => {
           pipeline.publish(key(ref), event);
         });
       }
@@ -312,15 +312,15 @@ export function ValkeyIndexer<T, R extends keyof T>({
     const pipeline = valkey.multi();
     if ("pkey" in arg) {
       pipeline.del(key(arg));
-      const relations = await getRelations(arg);
-      mapRelations(relations, (ref) => {
+      const relations = await getRelated(arg);
+      mapRelated(relations, (ref) => {
         pipeline.zrem(key(ref), String(arg.pkey));
       });
     } else if ("fkey" in arg && "relation" in arg) {
       for (const pkey of await pkeys(arg)) {
         pipeline.del(key({ pkey }));
-        const relations = await getRelations({ pkey });
-        mapRelations(relations, (ref) => {
+        const relations = await getRelated({ pkey });
+        mapRelated(relations, (ref) => {
           pipeline.zrem(key(ref), String(pkey));
         });
       }
@@ -336,7 +336,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     maxlen,
     key,
     pkeys,
-    mapRelations,
+    mapRelated,
     publish,
     subscribe,
     touch,
