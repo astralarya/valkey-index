@@ -1,6 +1,7 @@
 import { sleep } from "bun";
 import { ValkeyHashIndex, ValkeyType } from "../src";
 import { useBeforeEach, valkey, type TestObject } from ".";
+import { ValkeyPipeline } from "../src/pipeline";
 
 useBeforeEach();
 
@@ -137,6 +138,204 @@ test("Subscription", async () => {
       input: { bar: 3 },
       message: "good",
     });
+  }, 10);
+
+  expect(
+    await Promise.all([
+      Promise.race([next1_3, sleep(100)]),
+      Promise.race([next2_3, sleep(100)]),
+      Promise.race([next3_3, sleep(100)]),
+    ]),
+  ).toEqual([
+    {
+      done: false,
+      value: {
+        source: {
+          pkey: "1",
+          index: "subscription",
+        },
+        message: "good",
+      },
+    },
+    undefined,
+    {
+      done: false,
+      value: {
+        source: {
+          pkey: "1",
+          index: "subscription",
+        },
+        message: "good",
+      },
+    },
+  ]);
+}, 10000);
+
+test("Subscription pipeline", async () => {
+  const pipeline1 = ValkeyPipeline(valkey);
+  pipeline1.add("get", subscriptionIndex.pipe.get({ pkey: 1 }));
+  expect(await pipeline1.exec()).toEqual({ get: [{}] });
+
+  const subscribe1 = subscriptionIndex.subscribe({ pkey: 1 });
+  const subscribe2 = subscriptionIndex.subscribe({
+    fkey: 2,
+    relation: "bar",
+  });
+  const subscribe3_1 = subscriptionIndex.subscribe({
+    fkey: 3,
+    relation: "bar",
+  });
+
+  const next1_1 = subscribe1.next();
+  const next2_1 = subscribe2.next();
+  const next3_1 = subscribe3_1.next();
+
+  let prev1: TestObject;
+  setTimeout(async () => {
+    const pipeline = ValkeyPipeline(valkey);
+    pipeline.add(
+      "set",
+      subscriptionIndex.pipe.set({
+        pkey: 1,
+        input: { foo: "ababa", bar: 2 },
+        prev: undefined,
+        message: "hello",
+      }),
+    );
+    pipeline.add(
+      "get",
+      subscriptionIndex.pipe.get({
+        pkey: 1,
+      }),
+    );
+    const {
+      get: [get],
+    } = await pipeline.exec<any>();
+    prev1 = get;
+  }, 10);
+
+  expect(
+    await Promise.all([
+      Promise.race([next1_1, sleep(100)]),
+      Promise.race([next2_1, sleep(100)]),
+      Promise.race([next3_1, sleep(100)]),
+    ]),
+  ).toEqual([
+    {
+      done: false,
+      value: {
+        source: {
+          pkey: "1",
+          index: "subscription",
+        },
+        message: "hello",
+      },
+    },
+    {
+      done: false,
+      value: {
+        source: {
+          pkey: "1",
+          index: "subscription",
+        },
+        message: "hello",
+      },
+    },
+    undefined,
+  ]);
+
+  const next1_2 = subscribe1.next();
+  const next2_2 = subscribe2.next();
+  const subscribe3_2 = subscriptionIndex.subscribe({
+    fkey: 3,
+    relation: "bar",
+  });
+  const next3_2 = subscribe3_2.next();
+
+  let prev2: TestObject;
+  setTimeout(async () => {
+    const pipeline = ValkeyPipeline(valkey);
+    pipeline.add(
+      "set",
+      subscriptionIndex.pipe.set({
+        pkey: 1,
+        input: { foo: "gagaga", bar: 2 },
+        prev: prev1,
+        message: "world",
+      }),
+    );
+    pipeline.add(
+      "get",
+      subscriptionIndex.pipe.get({
+        pkey: 1,
+      }),
+    );
+    const {
+      get: [get],
+    } = await pipeline.exec<any>();
+    prev2 = get;
+  }, 10);
+
+  expect(
+    await Promise.all([
+      Promise.race([next1_2, sleep(100)]),
+      Promise.race([next2_2, sleep(100)]),
+      Promise.race([next3_2, sleep(100)]),
+    ]),
+  ).toEqual([
+    {
+      done: false,
+      value: {
+        source: {
+          pkey: "1",
+          index: "subscription",
+        },
+        message: "world",
+      },
+    },
+    {
+      done: false,
+      value: {
+        source: {
+          pkey: "1",
+          index: "subscription",
+        },
+        message: "world",
+      },
+    },
+    undefined,
+  ]);
+
+  const next1_3 = subscribe1.next();
+  const next2_3 = subscribe2.next();
+  const subscribe3_3 = subscriptionIndex.subscribe({
+    fkey: 3,
+    relation: "bar",
+  });
+  const next3_3 = subscribe3_3.next();
+
+  let prev3: TestObject;
+  setTimeout(async () => {
+    const pipeline = ValkeyPipeline(valkey);
+    pipeline.add(
+      "update",
+      subscriptionIndex.pipe.update({
+        pkey: 1,
+        input: { bar: 3 },
+        prev: prev2,
+        message: "good",
+      }),
+    );
+    pipeline.add(
+      "get",
+      subscriptionIndex.pipe.get({
+        pkey: 1,
+      }),
+    );
+    const {
+      get: [get],
+    } = await pipeline.exec<any>();
+    prev3 = get;
   }, 10);
 
   expect(
