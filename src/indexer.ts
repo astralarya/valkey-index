@@ -1,6 +1,7 @@
 import { on } from "events";
 import type { ChainableCommander } from "iovalkey";
 import type Redis from "iovalkey";
+import type { ValkeyPipelineAction } from "./pipeline";
 
 export const DEFAULT_TTL = 60 * 60 * 24;
 export const DEFAULT_MAXLEN = 8;
@@ -42,6 +43,13 @@ export type ValkeyIndexPublish<T, R extends keyof T> =
   | {
       source: ValkeyIndexRef<T, R>;
       channel: ValkeyIndexRef<T, R>;
+    };
+
+export type ValkeyIndexPublishPipe =
+  | { pkey: KeyPart }
+  | {
+      source: { pkey: KeyPart };
+      channel: { pkey: KeyPart };
     };
 
 export type ValkeyIndexerProps<T, R extends keyof T> = {
@@ -87,6 +95,18 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
     },
   ) => void;
   del: (arg: ValkeyIndexRef<T, R>) => Promise<void>;
+  pipe: {
+    publish: (
+      arg: ValkeyIndexPublishPipe & {
+        message: string;
+        related?: ValkeyIndexRelations<T, R>;
+      },
+    ) => ValkeyPipelineAction<void>;
+    del: (arg: {
+      pkey: KeyPart;
+      related: ValkeyIndexRelations<T, R> | undefined;
+    }) => ValkeyPipelineAction<void>;
+  };
 };
 
 export type ValkeyIndexerContext<T, R extends keyof T> = ValkeyIndexerReturn<
@@ -184,6 +204,35 @@ export function ValkeyIndexer<T, R extends keyof T>({
       throw new ValkeyIndexRefError("ValkeyIndexer:publish()");
     }
     await pipeline.exec();
+  }
+
+  function publish_pipe(
+    arg: ValkeyIndexPublishPipe & {
+      message: string;
+      related?: ValkeyIndexRelations<T, R>;
+    },
+  ) {
+    return function pipe(pipeline: ChainableCommander) {
+      if ("source" in arg && "channel" in arg) {
+        const event = stringifyEvent(
+          { ...arg.source, index: name },
+          arg.message,
+        );
+        pipeline.publish(key({ pkey: arg.channel.pkey }), event);
+      } else if ("pkey" in arg) {
+        const event = stringifyEvent(
+          { pkey: arg.pkey, index: name },
+          arg.message,
+        );
+        pipeline.publish(key({ pkey: arg.pkey }), event);
+        if (arg.related) {
+          mapRelated(arg.related, (ref) => {
+            pipeline.publish(key(ref), event);
+          });
+        }
+      }
+      return null;
+    };
   }
 
   async function* subscribe(
@@ -329,6 +378,24 @@ export function ValkeyIndexer<T, R extends keyof T>({
     pipeline.exec();
   }
 
+  function del_pipe({
+    pkey,
+    related,
+  }: {
+    pkey: KeyPart;
+    related: ValkeyIndexRelations<T, R> | undefined;
+  }) {
+    return function pipe(pipeline: ChainableCommander) {
+      pipeline.del(key({ pkey }));
+      if (related) {
+        mapRelated(related, (ref) => {
+          pipeline.zrem(key(ref), String(pkey));
+        });
+      }
+      return null;
+    };
+  }
+
   return {
     valkey,
     name,
@@ -341,6 +408,10 @@ export function ValkeyIndexer<T, R extends keyof T>({
     subscribe,
     touch,
     del,
+    pipe: {
+      publish: publish_pipe,
+      del: del_pipe,
+    },
   };
 }
 
