@@ -74,9 +74,18 @@ export type ValkeyHashSetPipe<T> = (arg: {
   message?: string;
 }) => ValkeyPipelineAction<void>;
 
+export type ValkeyHashUpdatePipe<T> = (arg: {
+  pkey: KeyPart;
+  input: Partial<T>;
+  prev: T | undefined;
+  ttl?: Date | number;
+  message?: string;
+}) => ValkeyPipelineAction<void>;
+
 export type ValkeyHashIndexPipes<T> = {
   get: ValkeyHashGetPipe<T>;
   set: ValkeyHashSetPipe<T>;
+  update: ValkeyHashUpdatePipe<T>;
 };
 
 export type ValkeyHashIndexInterface<
@@ -84,6 +93,7 @@ export type ValkeyHashIndexInterface<
   R extends keyof T,
 > = ValkeyIndexerReturn<T, R> &
   ValkeyHashIndexOps<T, R> & {
+    related(value: Partial<T>): ValkeyIndexRelations<T, R>;
     pipe: ValkeyHashIndexPipes<T>;
   };
 
@@ -118,9 +128,15 @@ export type ValkeyHashSetPiper<T, R extends keyof T> = (
   arg: { key: string; input: T },
 ) => ValkeyPipelineAction<void>;
 
+export type ValkeyHashUpdatePiper<T, R extends keyof T> = (
+  ctx: ValkeyIndexerReturn<T, R>,
+  arg: { key: string; input: Partial<T> },
+) => ValkeyPipelineAction<void>;
+
 export type ValkeyHashIndexPipers<T, R extends keyof T> = {
   get: ValkeyHashGetPiper<T>;
   set: ValkeyHashSetPiper<T, R>;
+  update: ValkeyHashUpdatePiper<T, R>;
 };
 
 export type ValkeyHashIndexProps<
@@ -150,7 +166,7 @@ export function ValkeyHashIndex<
   get: get__,
   set: set__,
   update: update__,
-  pipe: { get: get_pipe__, set: set_pipe__ } = {},
+  pipe: { get: get_pipe__, set: set_pipe__, update: update_pipe__ } = {},
 }: ValkeyHashIndexProps<T, R, F>) {
   relations.map((x) => validateValkeyName(String(x)));
 
@@ -180,6 +196,7 @@ export function ValkeyHashIndex<
 
   const get_pipe_ = get_pipe__ || getHash(type);
   const set_pipe_ = set_pipe__ || setHash(type);
+  const update_pipe_ = update_pipe__ || updateHash(type);
 
   function related(value: Partial<T>) {
     return Object.fromEntries(
@@ -390,6 +407,35 @@ export function ValkeyHashIndex<
     return;
   }
 
+  function update_pipe({
+    pkey,
+    input,
+    prev: prev_value,
+    ttl: ttl_,
+    message,
+  }: {
+    pkey: KeyPart;
+    input: Partial<T>;
+    prev: T | undefined;
+    ttl?: Date | number;
+    message?: string;
+  }) {
+    const key_ = key({ pkey });
+    const prev = prev_value ? related(prev_value) : undefined;
+    const next = related({ ...prev, ...input });
+    return function pipe(pipeline: ChainableCommander) {
+      update_pipe_(
+        { ...indexer, pipeline },
+        {
+          key: key_,
+          input,
+        },
+      );
+      touch(pipeline, { pkey, message, ttl: ttl_, prev, next });
+      return null;
+    };
+  }
+
   async function reduce({
     pkey,
     reducer,
@@ -427,6 +473,7 @@ export function ValkeyHashIndex<
 
   const ops: ValkeyHashIndexInterface<T, R> = {
     ...indexer,
+    related,
     get,
     set,
     update,
@@ -435,6 +482,7 @@ export function ValkeyHashIndex<
       ...indexer.pipe,
       get: get_pipe,
       set: set_pipe,
+      update: update_pipe,
     },
   };
 
@@ -497,7 +545,7 @@ export function setHash<T>(type: ValkeyType<T>) {
 }
 
 export function updateHash<T, R extends keyof T>(type: ValkeyType<T>) {
-  return async function update(
+  return function update(
     { pipeline }: ValkeyIndexerContext<T, R>,
     { key, input }: { key: string; input: Partial<T> },
   ) {
