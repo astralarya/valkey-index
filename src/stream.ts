@@ -144,6 +144,7 @@ export function ValkeyStreamIndex<
     range,
     read,
     pipe: {
+      ...indexer.pipe,
       append: append_pipe,
       range: range_pipe,
     },

@@ -432,6 +432,7 @@ export function ValkeyHashIndex<
     update,
     reduce,
     pipe: {
+      ...indexer.pipe,
       get: get_pipe,
       set: set_pipe,
     },

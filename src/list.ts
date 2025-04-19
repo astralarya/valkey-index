@@ -426,6 +426,7 @@ export function ValkeyListIndex<
     index,
     trim,
     pipe: {
+      ...indexer.pipe,
       len: len_pipe,
       push: push_pipe,
       pushx: pushx_pipe,
