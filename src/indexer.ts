@@ -1,7 +1,7 @@
 import { on } from "events";
 import type { ChainableCommander } from "iovalkey";
 import type Redis from "iovalkey";
-import type { ValkeyPipelineAction } from "./pipeline";
+import type { ValkeyPipelineAction, ValkeyPipelineResult } from "./pipeline";
 
 export const DEFAULT_TTL = 60 * 60 * 24;
 export const DEFAULT_MAXLEN = 8;
@@ -96,6 +96,7 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
   ) => void;
   del: (arg: ValkeyIndexRef<T, R>) => Promise<void>;
   pipe: {
+    pkeys: (ref: ValkeyIndexRef<T, R>) => ValkeyPipelineAction<KeyPart[]>;
     publish: (
       arg: ValkeyIndexPublishPipe & {
         message: string;
@@ -147,6 +148,25 @@ export function ValkeyIndexer<T, R extends keyof T>({
       return [ref.pkey];
     } else if ("fkey" in ref && "relation" in ref) {
       return valkey.zrange(key(ref), 0, "-1");
+    }
+    throw new ValkeyIndexRefError("ValkeyIndexer:pkeys()");
+  }
+
+  function pkeys_pipe(ref: ValkeyIndexRef<T, R>) {
+    if ("pkey" in ref) {
+      return function pipe() {
+        return function getter() {
+          return [ref.pkey];
+        };
+      };
+    } else if ("fkey" in ref && "relation" in ref) {
+      return function pipe(pipeline: ChainableCommander) {
+        const idx = pipeline.length;
+        pipeline.zrange(key(ref), 0, "-1");
+        return function getter(results: ValkeyPipelineResult) {
+          return (results[idx]?.[1] ?? []) as KeyPart[];
+        };
+      };
     }
     throw new ValkeyIndexRefError("ValkeyIndexer:pkeys()");
   }
@@ -409,6 +429,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     touch,
     del,
     pipe: {
+      pkeys: pkeys_pipe,
       publish: publish_pipe,
       del: del_pipe,
     },
