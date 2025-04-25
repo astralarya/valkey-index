@@ -31,6 +31,18 @@ export type ValkeyIndexGlobalRef = {
     }
 );
 
+export type ValkeyIndexRelativeRef = {
+  index?: string;
+} & (
+  | {
+      pkey: KeyPart;
+    }
+  | {
+      relation: KeyPart;
+      fkey: KeyPart;
+    }
+);
+
 export type ValkeyIndexRelations<T, R extends keyof T> = Record<R, KeyPart[]>;
 
 export type ValkeyIndexEvent<T> = {
