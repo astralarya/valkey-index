@@ -31,17 +31,10 @@ export type ValkeyIndexGlobalRef = {
     }
 );
 
-export type ValkeyIndexRelativeRef = {
+export type ValkeyIndexPkey = {
   index?: string;
-} & (
-  | {
-      pkey: KeyPart;
-    }
-  | {
-      relation: KeyPart;
-      fkey: KeyPart;
-    }
-);
+  pkey: KeyPart;
+};
 
 export type ValkeyIndexRelations<T, R extends keyof T> = Record<R, KeyPart[]>;
 
@@ -80,6 +73,7 @@ export type ValkeyIndexerReturn<T, R extends keyof T> = {
   ttl?: number;
   maxlen?: number;
   key: (ref: ValkeyIndexRef<T, R>) => string;
+  relativeKey(relkey: ValkeyIndexPkey): string;
   pkeys: (ref: ValkeyIndexRef<T, R>) => Promise<KeyPart[]>;
   mapRelated: (
     relations: ValkeyIndexRelations<T, R>,
@@ -153,6 +147,14 @@ export function ValkeyIndexer<T, R extends keyof T>({
       return `${name}@${String(ref.relation)}:${String(ref.fkey)}`;
     }
     throw new ValkeyIndexRefError("ValkeyIndexer:key()");
+  }
+
+  function relativeKey(relkey: ValkeyIndexPkey) {
+    if ("index" in relkey) {
+      return `${relkey.index}:${String(relkey.pkey)}`;
+    } else {
+      return key(relkey);
+    }
   }
 
   async function pkeys(ref: ValkeyIndexRef<T, R>) {
@@ -434,6 +436,7 @@ export function ValkeyIndexer<T, R extends keyof T>({
     ttl,
     maxlen,
     key,
+    relativeKey,
     pkeys,
     mapRelated,
     publish,
